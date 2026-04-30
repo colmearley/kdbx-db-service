@@ -1,0 +1,155 @@
+networks:
+  kx-db:
+    name: kx-db
+    driver: bridge
+
+services:
+
+  kx-db-rt:
+    container_name: kx-db-rt
+    cgroup_parent: ${DS_CGROUP_PARENT:-}
+    mem_limit: ${DS_OTHER_MEM_LIMIT:-0}
+    tty: true
+    stdin_open: true
+    ports:
+      - ${DS_PORT_BUS:-5002}:5002
+    volumes:
+      - ./data/rt:/s
+    networks:
+      - kx-db
+    environment:
+      - KDB_LICENSE_B64
+      - KDB_K4LICENSE_B64
+      - RT_SEQ_SESSION_PATH=/s/session
+      - RT_SINK=data
+      - RT_TOPIC_PREFIX=rt-
+    hostname: rt-data-0
+    image: ${DS_REGISTRY:-}kxi-rt:${DS_RT_TAG}
+    command: -p 6000 -in /s/in -out /s/out -cp /s/state -size 1
+
+  kx-db-sm:
+    container_name: kx-db-sm
+    cgroup_parent: ${DS_CGROUP_PARENT:-}
+    mem_limit: ${DS_SM_MEM_LIMIT:-0}
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./data/db:/db
+      - ./data/imports:/imports
+      - ./data/logs:/logs
+    networks:
+      - kx-db
+    environment:
+      - KDB_LICENSE_B64
+      - KDB_K4LICENSE_B64
+      - KXDB_ENABLED=true
+      - KXI_NAME=sm
+      - KXI_SC=SM
+      - KXI_PORT=20001
+      - RT_LOG_PATH=/logs/sm
+      - KXI_SM_OBJSTORE_CONVERSION=true
+      - KXI_LOG_LEVELS=default:trace
+      - KXI_SCHEMA_OWNERSHIP=internal
+      - RT_TOPIC_PREFIX=rt-
+      - RT_REPLICAS=1
+      - KXI_SECURE_ENABLED=false
+      - KXI_LATE_DATA=true
+      - KXI_LOG_FORMAT=text
+    image: ${DS_REGISTRY}kxi-sm-single:${DS_TAG}
+
+  kx-db-da:
+    container_name: kx-db-da
+    cgroup_parent: ${DS_CGROUP_PARENT:-}
+    mem_limit: ${DS_DA_MEM_LIMIT:-0}
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./data/db:/db
+      - ./data/logs:/logs
+    networks:
+      - kx-db
+    environment:
+      - KDB_LICENSE_B64
+      - KDB_K4LICENSE_B64
+      - KXDB_ENABLED=true
+      - KXI_LOG_LEVELS=default:trace
+      - KXI_SCHEMA_OWNERSHIP=internal
+      - KXI_NAME=dap
+      - KXI_SC=dap
+      - KXI_PORT=5080
+      - RT_LOG_PATH=/logs/da
+      - RT_TOPIC_PREFIX=rt-
+      - RT_REPLICAS=1
+      - KXI_SECURE_ENABLED=false
+      - KXI_LATE_DATA=true
+      - KXI_LOG_FORMAT=text
+      - KXI_SG_RC_ADDR=kx-db-rc:5050
+      - KXI_SM_ADDR=kx-db-sm:20001
+    image: ${DS_REGISTRY}kxi-da-single:${DS_TAG}
+
+  kx-db-rc:
+    container_name: kx-db-rc
+    cgroup_parent: ${DS_CGROUP_PARENT:-}
+    mem_limit: ${DS_OTHER_MEM_LIMIT:-0}
+    tty: true
+    stdin_open: true
+    networks:
+      - kx-db
+    environment:
+      - KDB_LICENSE_B64
+      - KDB_K4LICENSE_B64
+      - KXDB_ENABLED=true
+      - KXI_LOG_LEVELS=default:trace
+      - KXI_SCHEMA_OWNERSHIP=internal
+      - KXI_SECURE_ENABLED=false
+      - KXI_LATE_DATA=true
+      - KXI_LOG_FORMAT=text
+      - KXI_NAME=sg_rc
+      - KXI_PORT=5050
+    image: ${DS_REGISTRY}kxi-sg-rc:${DS_TAG}
+
+  kx-db-agg:
+    container_name: kx-db-agg
+    cgroup_parent: ${DS_CGROUP_PARENT:-}
+    mem_limit: ${DS_OTHER_MEM_LIMIT:-0}
+    tty: true
+    stdin_open: true
+    networks:
+      - kx-db
+    environment:
+      - KDB_LICENSE_B64
+      - KDB_K4LICENSE_B64
+      - KXDB_ENABLED=true
+      - KXI_NAME=sg_agg
+      - KXI_PORT=5060
+      - KXI_LOG_LEVELS=default:trace
+      - KXI_SCHEMA_OWNERSHIP=internal
+      - KXI_SECURE_ENABLED=false
+      - KXI_LATE_DATA=true
+      - KXI_LOG_FORMAT=text
+      - KXI_SG_RC_ADDR=kx-db-rc:5050
+    image: ${DS_REGISTRY}kxi-sg-agg:${DS_TAG}
+
+  kx-db-gw:
+    container_name: kx-db-gw
+    cgroup_parent: ${DS_CGROUP_PARENT:-}
+    mem_limit: ${DS_OTHER_MEM_LIMIT:-0}
+    tty: true
+    stdin_open: true
+    ports:
+      - ${DS_PORT_QIPC:-5040}:5040
+      - ${DS_PORT_HTTP:-8080}:8080
+    networks:
+      - kx-db
+    environment:
+      - KXI_LOG_LEVELS=default:trace
+      - KXI_SCHEMA_OWNERSHIP=external
+      - KXI_SECURE_ENABLED=false
+      - KXI_LATE_DATA=true
+      - GATEWAY_QIPC_PORT=5040
+      - GATEWAY_HTTP_PORT=8080
+      - KXI_SG_SM_ADDR_db=kx-db-sm:20001
+      - KXI_SCOPE_AFFINITY=soft
+      - KXI_LOG_FORMAT=text
+      - KXI_SG_RC_ADDR=kx-db-rc:5050
+    image: ${DS_REGISTRY}kxi-sg-gw:${DS_TAG}

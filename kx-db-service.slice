@@ -1,0 +1,5 @@
+[Unit]
+Description=KDB-X DB Service Community Edition
+
+[Slice]
+MemoryMax=16G

@@ -1,0 +1,6 @@
+{
+  "name": "dbs-fxpub",
+  "useSslRt": false,
+  "topics": { "insert": "data" },
+  "insert": { "insert": [":localhost:5002"] }
+}

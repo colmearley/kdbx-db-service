@@ -1,0 +1,2304 @@
+openapi: 3.0.3
+info:
+  title: KDB-X Database Service API
+  version: 0.1.0
+  description: OpenAPI spec for the KDB-X Database Service.
+servers:
+  - url: http://localhost:8080
+tags:
+- name: Tables
+- name: Imports
+- name: Query
+paths:
+  /api/v0/query/simple:
+    post:
+      tags:
+      - Query
+      operationId: simple
+      summary: Structured query (parameterized)
+      description: Structured query using explicit parameters (table, time range, filters, aggregations) rather than a free-form query string.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StructuredRequest'
+            example:
+              table: quote
+              startTS: 2024.11.02T00:00:00.000
+              endTS: 2024.11.03T00:00:00.000
+              inputTZ: UTC
+              outputTZ: UTC
+              outputTZCols:
+              - - createTS
+                - updateTS
+              filter:
+              - - or
+                - - '='
+                  - sym
+                  - DNDF.CAN
+                - - '>'
+                  - price
+                  - '300.50'
+              groupBy:
+              - sym
+              agg:
+              - - minPx
+                - min
+                - price
+              fill: zero
+              temporality: slice
+              sortCols:
+              - sym
+              - desc
+              limit:
+              - 3
+      responses:
+        '200':
+          description: Query executed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              example:
+                header:
+                  corr: f98f13f8-621b-4721-b242-3afb94077441
+                  logCorr: f98f13f8-621b-4721-b242-3afb94077441
+                  rcvTS: '2026-01-22T07:36:33.459000000'
+                  http: json
+                  api: simple
+                  agg: ':192.168.240.7:5060'
+                  refVintage: -9223372036854776000
+                  rc: 0
+                  ac: 0
+                  ai: ""
+                  limitApplied: false
+                payload:
+                - time: 0D07:33:41.240573052
+                  sym: X
+                  realTime: '2026-01-24T07:33:41.240473052'
+                  ask: 2.975187
+                  asize: 14
+                  bid: 45.16773
+                  bsize: 36
+                  sensorID: 0
+                  randomID: 14
+                - time: 0D07:33:41.240573118
+                  sym: K
+                  realTime: '2026-01-24T07:33:41.240473118'
+                  ask: 36.78192
+                  asize: 27
+                  bid: 61.92058
+                  bsize: 28
+                  sensorID: 0
+                  randomID: 0
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (invalid query or parameters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              example:
+                header:
+                  corr: 457984f5-7e75-4544-95b8-59823844bf7b
+                  logCorr: 457984f5-7e75-4544-95b8-59823844bf7b
+                  version: 1
+                  rcvTS: '2026-03-31T07:12:12.483000000'
+                  http: json
+                  api: .query.simple
+                  agg: ''
+                  refVintage: 0
+                  rc: 56
+                  ac: 27
+                  ai: Table not found, table=quote
+                payload: []
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: Service unavailable.
+      x-codeSamples:
+      - lang: Python
+        label: Python
+        source: "session.query_simple(\n    table=\"quote\",\n    startTS=\"2026.01.29\"\
+          ,\n    endTS=\"2026.01.30\",\n    filter=[\"sym=`AAPL\"],\n    groupBy=[\"\
+          sym\"],\n    agg=[\"avgBid:avg bid\"]\n)"
+      - lang: q
+        label: q
+        source: |
+          session.querySimple[
+            "quote";
+            "2026.01.29";
+            "2026.01.30";
+            ("sym=`AAPL");
+            ("sym");
+            ("avgBid:avg bid")
+          ]
+      - lang: cURL
+        label: cURL
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/query/simple" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "table":"quote",
+              "startTS":"2026.02.09",
+              "endTS":"2026.02.12",
+              "filter":["sym=`AAPL"],
+              "groupBy":["sym"],
+              "agg":["avgBid:avg bid"]
+            }'
+  /api/v0/query/sql:
+    post:
+      tags:
+      - Query
+      operationId: sql
+      summary: SQL query (free-form)
+      description: Executes a SQL query string (SELECT-only) against the database.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SqlRequest'
+            example:
+              query: select sym, bid, ask from quote where bid > 100 by sym
+      responses:
+        '200':
+          description: Query executed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              example:
+                header:
+                  corr: f98f13f8-621b-4721-b242-3afb94077441
+                  logCorr: f98f13f8-621b-4721-b242-3afb94077441
+                  rcvTS: '2026-01-22T07:36:33.459000000'
+                  http: json
+                  api: sql
+                  agg: ':192.168.240.7:5060'
+                  refVintage: -9223372036854776000
+                  rc: 0
+                  ac: 0
+                  ai: ""
+                  limitApplied: false
+                payload:
+                - sym: X
+                  bid: 45.16773
+                  ask: 2.975187
+                - sym: K
+                  bid: 61.92058
+                  ask: 36.78192
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (invalid query or parameters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              example:
+                header:
+                  corr: 457984f5-7e75-4544-95b8-59823844bf7b
+                  logCorr: 457984f5-7e75-4544-95b8-59823844bf7b
+                  version: 1
+                  rcvTS: '2026-03-31T07:12:12.483000000'
+                  http: json
+                  api: .query.sql
+                  agg: ''
+                  refVintage: 0
+                  rc: 56
+                  ac: 27
+                  ai: Table not found, table=quote
+                payload: []
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: Service unavailable.
+      x-codeSamples:
+      - lang: Python
+        label: Python
+        source: session.query_sql(query="SELECT bid,sym FROM quote WHERE date='2026-01-30'")
+      - lang: q
+        label: q
+        source: |
+          session.querySQL[enlist[`query]!enlist "SELECT bid,sym FROM quote WHERE date='2026-01-30'"]
+      - lang: cURL
+        label: cURL
+        source: |
+          curl -s -X POST "http://localhost:8080/api/v0/query/sql" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{"query":"SELECT bid,sym FROM quote WHERE date='\''2026-01-30'\''"}'
+  /api/v0/query/q:
+    post:
+      tags:
+      - Query
+      operationId: qsql
+      summary: q query (free-form)
+      description: Executes a q query string against the database.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QSqlRequest'
+            example:
+              query: select from quote where sym=`DNDF.CAN, price>300.5
+              agg: '{select minPx:min price by sym from x}'
+      responses:
+        '200':
+          description: Query executed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              example:
+                header:
+                  corr: f98f13f8-621b-4721-b242-3afb94077441
+                  logCorr: f98f13f8-621b-4721-b242-3afb94077441
+                  rcvTS: '2026-01-22T07:36:33.459000000'
+                  http: json
+                  api: qsql
+                  agg: ':192.168.240.7:5060'
+                  refVintage: -9223372036854776000
+                  rc: 0
+                  ac: 0
+                  ai: ""
+                  limitApplied: false
+                payload:
+                - sym: X
+                  bid: 45.16773
+                - sym: K
+                  bid: 61.92058
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (invalid query or parameters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              example:
+                header:
+                  corr: 457984f5-7e75-4544-95b8-59823844bf7b
+                  logCorr: 457984f5-7e75-4544-95b8-59823844bf7b
+                  version: 1
+                  rcvTS: '2026-03-31T07:12:12.483000000'
+                  http: json
+                  api: .query.q
+                  agg: ''
+                  refVintage: 0
+                  rc: 56
+                  ac: 27
+                  ai: Table not found, table=quote
+                payload: []
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: Service unavailable.
+      x-codeSamples:
+      - lang: Python
+        label: Python
+        source: session.query_q(query="select bid by sym from quote", agg="sum")
+      - lang: q
+        label: q
+        source: |
+          session.queryQ[enlist[`query]!enlist["select bid by sym from quote"]]
+      - lang: cURL
+        label: cURL
+        source: |
+          curl -s -X POST "http://localhost:8080/api/v0/query/q" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{"query":"select bid by sym from quote","agg":"sum"}'
+  /api/v0/imports/{jobId}:
+    get:
+      tags:
+      - Imports
+      operationId: ingestStatus
+      summary: Get batch ingest job status
+      description: Returns the current status of a batch ingest job.
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Batch ingest job identifier.
+      responses:
+        '200':
+          description: Success. Job status returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: &idImportCompleted
+                name: 26adfb1d-29bc-fab9-5e32-73f80ea51300
+                pipeline: ''
+                database: db
+                updtype: ingest
+                status: completed
+                details:
+                  workerHandle: 34
+                  preprocessDone: '2026-03-22T13:25:44.177025580'
+                  subsessions:
+                  - ''
+                  dates:
+                  - '2026-02-03'
+                  tables:
+                  - forex
+                tbls:
+                - forex
+                dates:
+                - '2026-02-03'
+                progress:
+                  cmdCurrent: ''
+                  cmdIndex: 1
+                  cmdTotal: 1
+                  subCurrent: ''
+                  subIndex: 0
+                  subTotal: 0
+                error: ''
+                warnings: []
+                updated: '2026-03-22T13:25:44.312559923'
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: &idImportErrored
+                name: 7800725b-df34-f6cf-d17f-7bdfd525c24e
+                pipeline: ''
+                database: db
+                updtype: ingest
+                status: errored
+                details:
+                  workerHandle: 34
+                tbls: []
+                dates: []
+                progress:
+                  cmdCurrent: ''
+                  cmdIndex: null
+                  cmdTotal: null
+                  subCurrent: ''
+                  subIndex: null
+                  subTotal: null
+                error: 'table does not exist in the schema, but createTable flag was not set to true: tables=,`quotes'
+                warnings: []
+                updated: '2026-03-31T07:39:08.699688365'
+        '503': &id503
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: Service unavailable.
+      x-codeSamples:
+      - lang: Python
+        label: Python
+        source: session.get_import(job_id="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+      - lang: q
+        label: q
+        source: |
+          session.getImport["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
+      - lang: cURL
+        label: cURL
+        source: |
+          curl -X GET "http://localhost:8080/api/v0/imports/3fa85f64-5717-4562-b3fc-2c963f66afa6" \
+            -H "Accept: application/json"
+    delete:
+      tags:
+      - Imports
+      operationId: ingestDelete
+      summary: Cancel batch ingest job
+      description: Attempts to cancel a running batch ingest job.
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Batch ingest job identifier.
+      responses:
+        '200':
+          description: Success. Job canceled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: *idImportCompleted
+
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: *idImportErrored
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: Service unavailable.
+      x-codeSamples:
+      - lang: Python
+        label: Python
+        source: session.cancel_import(job_id="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+      - lang: q
+        label: q
+        source: |
+          session.cancelImport["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
+      - lang: cURL
+        label: cURL
+        source: |
+          curl -X DELETE "http://localhost:8080/api/v0/imports/3fa85f64-5717-4562-b3fc-2c963f66afa6" \
+            -H "Accept: application/json"
+  /api/v0/imports/files:
+    post:
+      tags:
+      - Imports
+      operationId: importFiles
+      summary: Batch ingest from file(s) into a table
+      description: Submit a batch ingest job for a table using files on the server. 
+          
+          
+          For CSV ingest, processing order is `types` (initial parse), then `postparse` (transform/derive), then `include` (final output column selection). 
+          
+
+          Returns a pending job response; ingestion continues after the response. Final success/failure is available via GET /api/v0/imports/{jobId}.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileIngestRequest'
+            examples:
+              fileIngestQuickStart:
+                summary: Minimal request
+                value:
+                  table: quote
+                  path: quote.csv
+              fileIngest:
+                summary: Standard file ingest
+                value:
+                  table: quote
+                  path: quote.csv
+                  mode: merge
+                  format: csv
+                  delimiter: ','
+                  decimal: .
+                  headerRowIndex: 0
+              fileIngestCreateTable:
+                summary: File ingest — create table
+                value:
+                  table: quote
+                  path: quote.csv
+                  format: csv
+                  delimiter: ','
+                  decimal: .
+                  createTable: true
+                  header:
+                  - time
+                  - sym
+                  - realTime
+                  - bid
+                  - ask
+                  - bidSize
+                  - askSize
+                  include:
+                  - bid
+                  - ask
+                  types: '   FF  '
+                  headerRowIndex: 0
+      responses:
+        '202':
+          description: Ingest job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: &idImportPending
+                name: 26adfb1d-29bc-fab9-5e32-73f80ea51300
+                pipeline: ''
+                database: db
+                updtype: ingest
+                status: pending
+                details:
+                  workerHandle: 34
+                tbls: []
+                dates: []
+                progress:
+                  cmdCurrent: ''
+                  cmdIndex: 0
+                  cmdTotal: 0
+                  subCurrent: ''
+                  subIndex: 0
+                  subTotal: 0
+                error: ''
+                warnings: []
+                updated: '2026-03-22T13:25:44.177025580'
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: *idImportErrored
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: Service unavailable.
+      x-codeSamples:
+      - lang: Python
+        label: Python (minimal request)
+        source: session.import_files(table="quote",path="quote.csv")
+      - lang: Python
+        label: Python (standard file ingest)
+        source: "session.import_files(\n    table=\"quote\",\n    path=\"quote.csv\"\
+          ,\n    format=\"csv\",\n    delimiter=\",\",\n    decimal=\".\",\n    headerRowIndex=0\n\
+          )"
+      - lang: Python
+        label: Python (create table)
+        source: "session.import_files(\n    table=\"quote\",\n    path=\"quote.csv\"\
+          ,\n    format=\"csv\",\n    delimiter=\",\",\n    decimal=\".\",\n    createTable=True,\n\
+          \    header=[\"time\", \"sym\", \"realTime\", \"bid\", \"ask\", \"bidSize\"\
+          , \"askSize\"],\n    include=[\"bid\", \"ask\"],\n    types=\"   FF  \",\n  \
+          \  headerRowIndex=0\n)"
+      - lang: q
+        label: q (minimal request)
+        source: |
+          session.importFiles[`table`path!("quote";"quote.csv")]
+      - lang: q
+        label: q (standard file ingest)
+        source: |
+          session.importFiles[`table`path`format`delimiter`decimal`headerRowIndex!("quote";"quote.csv";"csv";",";".";0)]
+      - lang: q
+        label: q (create table)
+        source: |
+          session.importFiles[`table`path`format`delimiter`decimal`createTable`header`include`types`headerRowIndex!("quote";"quote.csv";"csv";",";".";1b;("time";"sym";"realTime";"bid";"ask";"bidSize";"askSize");("bid";"ask");"   FF  ";0)]
+      - lang: cURL
+        label: cURL (minimal request)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/imports/files" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "table": "quote",
+              "path": "quote.csv"
+            }'
+      - lang: cURL
+        label: cURL (standard file ingest)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/imports/files" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "table": "quote",
+              "path": "quote.csv",
+              "format": "csv",
+              "delimiter": ",",
+              "decimal": ".",
+              "headerRowIndex": 0
+            }'
+      - lang: cURL
+        label: cURL (includes postparse)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/imports/files" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "table": "forex",
+              "path": "forex.csv",
+              "format": "csv",
+              "types": "SFFDV",
+              "postparse": {"time": "data[`date] + data`time"}
+            }'
+      - lang: cURL
+        label: cURL (create table)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/imports/files" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "table": "quote",
+              "path": "quote.csv",
+              "format": "csv",
+              "delimiter": ",",
+              "decimal": ".",
+              "createTable": true,
+              "header": ["time", "sym", "realTime", "bid", "ask", "bidSize", "askSize"],
+              "include": ["bid", "ask"],
+              "types": "   FF  ",
+              "headerRowIndex": 0
+            }'
+  /api/v0/imports/kdb:
+    post:
+      tags:
+      - Imports
+      operationId: ingestStart
+      summary: Batch ingest from a kdb database
+      description: >-
+        Submit a batch ingest job for a kdb-native data location readable by the
+        service. The provided path may reference a partitioned HDB directory and
+        may also support other kdb-native layouts such as splayed tables or
+        basic/q-binary tables. The service returns a job ID
+        and continues ingestion asynchronously after the response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KdbIngestRequest'
+            example:
+              path: /path/to/hdb
+              mode: merge
+              createTable: false
+      responses:
+        '202':
+          description: Ingest job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: *idImportPending
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: *idImportErrored
+        '503': *id503
+      x-codeSamples:
+      - lang: Python
+        label: Python
+        source: session.import_database(path="kdbdata", mode="merge")
+      - lang: q
+        label: q
+        source: |
+          session.importKDB[`table`path!("sensor";"kdbdata")]
+      - lang: cURL
+        label: cURL
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/imports/kdb" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "path": "kdbdata",
+              "mode": "merge"
+            }'
+  /api/v0/imports/data:
+    post:
+      tags:
+      - Imports
+      operationId: importData
+      summary: Ingest data from the JSON content of the request
+      description: Insert data provided inline in the request body. Supports either a row-matrix (array of rows) or a list of JSON dictionaries (one object per row). Returns a pending job response; final success/failure is available via GET /api/v0/imports/{jobId}.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataIngestRequest'
+            examples:
+              apiIngestRowMatrix:
+                summary: Row matrix
+                value:
+                  table: quote
+                  mode: merge
+                  data:
+                  - - '2026-01-21T10:00:00.000'
+                    - AAPL
+                    - 101.1
+                    - 101.2
+                  - - '2026-01-21T10:00:01.000'
+                    - AAPL
+                    - 101.2
+                    - 101.3
+              apiIngestObjects:
+                summary: JSON objects
+                value:
+                  table: quote
+                  data:
+                  - timestamp: '2026-01-21T10:00:00.000'
+                    sym: AAPL
+                    bid: 101.1
+                    ask: 101.2
+                  - timestamp: '2026-01-21T10:00:01.000'
+                    sym: AAPL
+                    bid: 101.2
+                    ask: 101.3
+              apiIngestAutoCreateRowMatrix:
+                summary: Row matrix — create table
+                value:
+                  table: quote
+                  data:
+                  - - '2026-01-21T10:00:00.000'
+                    - AAPL
+                    - 101.1
+                    - 101.2
+                  - - '2026-01-21T10:00:01.000'
+                    - AAPL
+                    - 101.2
+                    - 101.3
+                  createTable: true
+                  columnNames:
+                  - timestamp
+                  - sym
+                  - bid
+                  - ask
+                  types: PSFFF
+              apiIngestAutoCreateObjects:
+                summary: JSON objects — create table
+                value:
+                  table: quote
+                  data:
+                  - timestamp: '2026-01-21T10:00:00.000'
+                    sym: AAPL
+                    bid: 101.1
+                    ask: 101.2
+                  - timestamp: '2026-01-21T10:00:01.000'
+                    sym: AAPL
+                    bid: 101.2
+                    ask: 101.3
+                  createTable: true
+                  columnNames:
+                  - timestamp
+                  - sym
+                  - bid
+                  - ask
+                  types: PSFFF
+      responses:
+        '202':
+          description: Ingest job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: *idImportPending
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example: *idImportErrored
+        '503': *id503
+      x-codeSamples:
+      - lang: Python
+        label: Python (row matrix)
+        source: "session.import_data(\n    table=\"quote\",\n    data=[\n        [\"0D10:00:00.000000000\"\
+          , \"AAPL\", \"2026-01-21T10:00:00.000\", 101.1, 101.2, 100, 120],\n    \
+          \    [\"0D10:00:01.000000000\", \"AAPL\", \"2026-01-21T10:00:01.000\", 101.2,\
+          \ 101.3, 110, 130],\n    ],\n)"
+      - lang: Python
+        label: Python (JSON objects)
+        source: "session.import_data(\n    table=\"quote\",\n    data=[\n        {\n  \
+          \          \"time\": \"0D10:00:00.000000000\",\n            \"sym\": \"\
+          AAPL\",\n            \"realTime\": \"2026-01-21T10:00:00.000\",\n      \
+          \      \"bid\": 101.1,\n            \"ask\": 101.2,\n            \"bidSize\"\
+          : 100,\n            \"askSize\": 120,\n        },\n        {\n         \
+          \   \"time\": \"0D10:00:01.000000000\",\n            \"sym\": \"AAPL\",\n\
+          \            \"realTime\": \"2026-01-21T10:00:01.000\",\n            \"\
+          bid\": 101.2,\n            \"ask\": 101.3,\n            \"bidSize\": 110,\n\
+          \            \"askSize\": 130,\n        },\n    ],\n)"
+      - lang: Python
+        label: Python (row matrix — create table)
+        source: "session.import_data(\n    table=\"quote\",\n    data=[\n        [\"0D10:00:00.000000000\"\
+          , \"AAPL\", \"2026-01-21T10:00:00.000\", 101.1, 101.2, 100, 120],\n    \
+          \    [\"0D10:00:01.000000000\", \"AAPL\", \"2026-01-21T10:00:01.000\", 101.2,\
+          \ 101.3, 110, 130],\n    ],\n    createTable=True,\n    columnNames=[\"\
+          time\", \"sym\", \"realTime\", \"bid\", \"ask\", \"bidSize\", \"askSize\"\
+          ],\n    types=\"NSPFFJJ\",\n)"
+      - lang: Python
+        label: Python (JSON objects — create table)
+        source: "session.import_data(\n    table=\"quote\",\n    data=[\n        {\n  \
+          \          \"time\": \"0D10:00:00.000000000\",\n            \"sym\": \"\
+          AAPL\",\n            \"realTime\": \"2026-01-21T10:00:00.000\",\n      \
+          \      \"bid\": 101.1,\n            \"ask\": 101.2,\n            \"bidSize\"\
+          : 100,\n            \"askSize\": 120,\n        },\n        {\n         \
+          \   \"time\": \"0D10:00:01.000000000\",\n            \"sym\": \"AAPL\",\n\
+          \            \"realTime\": \"2026-01-21T10:00:01.000\",\n            \"\
+          bid\": 101.2,\n            \"ask\": 101.3,\n            \"bidSize\": 110,\n\
+          \            \"askSize\": 130,\n        },\n    ],\n    createTable=True,\n\
+          \    columnNames=[\"time\", \"sym\", \"realTime\", \"bid\", \"ask\", \"\
+          bidSize\", \"askSize\"],\n    types=\"NSPFFJJ\",\n)"
+      - lang: q
+        label: q (row matrix)
+        source: |
+          rows:(
+            ("0D10:00:00.000000000";"AAPL";"2026-01-21T10:00:00.000";101.1;101.2;100;120);
+            ("0D10:00:01.000000000";"AAPL";"2026-01-21T10:00:01.000";101.2;101.3;110;130)
+          );
+          session.importData[`table`data!(`quote;rows)]
+      - lang: q
+        label: q (JSON objects)
+        source: |
+          rows:(
+            `time`sym`realTime`bid`ask`bidSize`askSize!("0D10:00:00.000000000";"AAPL";"2026-01-21T10:00:00.000";101.1;101.2;100;120);
+            `time`sym`realTime`bid`ask`bidSize`askSize!("0D10:00:01.000000000";"AAPL";"2026-01-21T10:00:01.000";101.2;101.3;110;130)
+          );
+          session.importData[`table`data!(`quote;rows)]
+      - lang: q
+        label: q (row matrix — create table)
+        source: |
+          rows:(
+            ("0D10:00:00.000000000";"AAPL";"2026-01-21T10:00:00.000";101.1;101.2;100;120);
+            ("0D10:00:01.000000000";"AAPL";"2026-01-21T10:00:01.000";101.2;101.3;110;130)
+          );
+          session.importData[`table`data`createTable`columnNames`types!(`quote;rows;1b;("time";"sym";"realTime";"bid";"ask";"bidSize";"askSize");"NSPFFJJ")]
+      - lang: q
+        label: q (JSON objects — create table)
+        source: |
+          rows:(
+            `time`sym`realTime`bid`ask`bidSize`askSize!("0D10:00:00.000000000";"AAPL";"2026-01-21T10:00:00.000";101.1;101.2;100;120);
+            `time`sym`realTime`bid`ask`bidSize`askSize!("0D10:00:01.000000000";"AAPL";"2026-01-21T10:00:01.000";101.2;101.3;110;130)
+          );
+          session.importData[`table`data`createTable`columnNames`types!(`quote;rows;1b;("time";"sym";"realTime";"bid";"ask";"bidSize";"askSize");"NSPFFJJ")]
+      - lang: cURL
+        label: cURL (row matrix)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/imports/data" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "table": "quote",
+              "data": [
+                ["0D10:00:00.000000000", "AAPL", "2026-01-21T10:00:00.000", 101.1, 101.2, 100, 120],
+                ["0D10:00:01.000000000", "AAPL", "2026-01-21T10:00:01.000", 101.2, 101.3, 110, 130]
+              ]
+            }'
+      - lang: cURL
+        label: cURL (JSON objects)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/imports/data" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "table": "quote",
+              "data": [
+                {"time":"0D10:00:00.000000000","sym":"AAPL","realTime":"2026-01-21T10:00:00.000","bid":101.1,"ask":101.2,"bidSize":100,"askSize":120},
+                {"time":"0D10:00:01.000000000","sym":"AAPL","realTime":"2026-01-21T10:00:01.000","bid":101.2,"ask":101.3,"bidSize":110,"askSize":130}
+              ]
+            }'
+      - lang: cURL
+        label: cURL (row matrix — create table)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/imports/data" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "table": "quote",
+              "data": [
+                ["0D10:00:00.000000000", "AAPL", "2026-01-21T10:00:00.000", 101.1, 101.2, 100, 120],
+                ["0D10:00:01.000000000", "AAPL", "2026-01-21T10:00:01.000", 101.2, 101.3, 110, 130]
+              ],
+              "createTable": true,
+              "columnNames": ["time", "sym", "realTime", "bid", "ask", "bidSize", "askSize"],
+              "types": "NSPFFJJ"
+            }'
+      - lang: cURL
+        label: cURL (JSON objects — create table)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/imports/data" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "table": "quote",
+              "data": [
+                {"time":"0D10:00:00.000000000","sym":"AAPL","realTime":"2026-01-21T10:00:00.000","bid":101.1,"ask":101.2,"bidSize":100,"askSize":120},
+                {"time":"0D10:00:01.000000000","sym":"AAPL","realTime":"2026-01-21T10:00:01.000","bid":101.2,"ask":101.3,"bidSize":110,"askSize":130}
+              ],
+              "createTable": true,
+              "columnNames": ["time", "sym", "realTime", "bid", "ask", "bidSize", "askSize"],
+              "types": "NSPFFJJ"
+            }'
+  /api/v0/tables:
+    get:
+      operationId: listTables
+      summary: List table names
+      description: Returns the names of all tables in the database.
+      tags:
+      - Tables
+      responses:
+        '200':
+          description: Success. Table names are returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+              example:
+                - forex
+                - sensor
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: Service unavailable
+      x-codeSamples:
+      - lang: Python
+        label: Python
+        source: session.list_tables()
+      - lang: q
+        label: q
+        source: |
+          session.listTables[]
+      - lang: cURL
+        label: cURL
+        source: |
+          curl -X GET "http://localhost:8080/api/v0/tables" \
+            -H "Accept: application/json"
+  /api/v0/tables/{table}:
+    post:
+      operationId: configTableCreate
+      summary: Create table
+      description: Creates a table from the provided schema definition.
+      tags:
+      - Tables
+      parameters:
+      - name: table
+        in: path
+        required: true
+        description: Table name
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTableRequest'
+            example:
+              type: partitioned
+              prtnCol: realTime
+              columns:
+              - name: time
+                type: timespan
+              - name: sym
+                type: symbol
+                attrMem: grouped
+                attrDisk: parted
+                attrOrd: parted
+              - name: realTime
+                type: timestamp
+              - name: bid
+                type: float
+              - name: ask
+                type: float
+              - name: bidSize
+                type: long
+              - name: askSize
+                type: long
+              blockSize: 10000
+              sortColsOrd:
+              - sym
+              sortColsDisk:
+              - sym
+              description: Quote data
+      responses:
+        '200':
+          description: Table created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example:
+                name: d9726870-1c5c-0d13-4b90-be5fbcb2ad2f
+                pipeline: ''
+                database: db
+                updtype: schemaChange
+                status: completed
+                details: []
+                tbls: []
+                dates: []
+                progress:
+                  cmdCurrent: ''
+                  cmdIndex: 0
+                  cmdTotal: 0
+                  subCurrent: ''
+                  subIndex: 0
+                  subTotal: 0
+                error: ''
+                warnings: []
+                updated: '2026-03-30T13:37:44.365774085'
+
+        '400':
+          description: Bad request (invalid name, missing fields, or invalid types)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: 'table  has invalid type: partitioneddd'
+        '409':
+          description: Conflict (table already exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: 'Table already exists: quote'
+        '503': *id503
+      x-codeSamples:
+      - lang: Python
+        label: Python (full schema)
+        source: "session.create_table(\n    table=\"quote\",\n    description=\"Quote data\"\
+          ,\n    type=\"partitioned\",\n    blockSize=10000,\n    prtnCol=\"realTime\"\
+          ,\n    sortColsOrd=[\"sym\"],\n    sortColsDisk=[\"sym\"],\n    columns=[\n\
+          \        {\"name\": \"time\", \"type\": \"timespan\"},\n        {\"name\"\
+          : \"sym\", \"type\": \"symbol\", \"attrMem\": \"grouped\", \"attrDisk\"\
+          : \"parted\", \"attrOrd\": \"parted\"},\n        {\"name\": \"realTime\"\
+          , \"type\": \"timestamp\"},\n        {\"name\": \"bid\", \"type\": \"float\"\
+          },\n        {\"name\": \"ask\", \"type\": \"float\"},\n        {\"name\"\
+          : \"bidSize\", \"type\": \"long\"},\n        {\"name\": \"askSize\", \"\
+          type\": \"long\"},\n    ],\n)"
+      - lang: Python
+        label: Python (minimal schema)
+        source: "session.create_table(\n    table=\"quote\",\n    columns=[\n        {\"\
+          name\": \"time\", \"type\": \"timespan\"},\n        {\"name\": \"sym\",\
+          \ \"type\": \"symbol\"},\n        {\"name\": \"realTime\", \"type\": \"\
+          timestamp\"},\n        {\"name\": \"bid\", \"type\": \"float\"},\n     \
+          \   {\"name\": \"ask\", \"type\": \"float\"},\n        {\"name\": \"bidSize\"\
+          , \"type\": \"long\"},\n        {\"name\": \"askSize\", \"type\": \"long\"\
+          },\n    ],\n)"
+      - lang: q
+        label: q (full schema)
+        source: |
+          columns:(
+            `name`type!("time";"timespan");
+            `name`type`attrMem`attrDisk`attrOrd!("sym";"symbol";"grouped";"parted";"parted");
+            `name`type!("realTime";"timestamp");
+            `name`type!("bid";"float");
+            `name`type!("ask";"float");
+            `name`type!("bidSize";"long");
+            `name`type!("askSize";"long")
+          );
+          session.createTable[`table`description`type`blockSize`prtnCol`sortColsDisk`sortColsOrd`columns!("quote";"Quote data";"partitioned";10000;"realTime";enlist "sym";enlist "sym";columns)]
+
+      - lang: q
+        label: q (minimal schema)
+        source: |
+          columns:(
+            `name`type!("time";"timespan");
+            `name`type!("sym";"symbol");
+            `name`type!("realTime";"timestamp");
+            `name`type!("bid";"float");
+            `name`type!("ask";"float");
+            `name`type!("bidSize";"long");
+            `name`type!("askSize";"long")
+          );
+          session.createTable[`table`columns!("quote";columns)]
+
+      - lang: cURL
+        label: cURL (full schema)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/tables/quote" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "description": "Quote data",
+              "type": "partitioned",
+              "blockSize": 10000,
+              "prtnCol": "realTime",
+              "sortColsOrd": ["sym"],
+              "sortColsDisk": ["sym"],
+              "columns": [
+                {"name": "time", "type": "timespan"},
+                {"name": "sym", "type": "symbol", "attrMem": "grouped", "attrDisk": "parted", "attrOrd": "parted"},
+                {"name": "realTime", "type": "timestamp"},
+                {"name": "bid", "type": "float"},
+                {"name": "ask", "type": "float"},
+                {"name": "bidSize", "type": "long"},
+                {"name": "askSize", "type": "long"}
+              ]
+            }'
+      - lang: cURL
+        label: cURL (minimal schema)
+        source: |
+          curl -X POST "http://localhost:8080/api/v0/tables/quote" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "columns": [
+                {"name": "time", "type": "timespan"},
+                {"name": "sym", "type": "symbol"},
+                {"name": "realTime", "type": "timestamp"},
+                {"name": "bid", "type": "float"},
+                {"name": "ask", "type": "float"},
+                {"name": "bidSize", "type": "long"},
+                {"name": "askSize", "type": "long"}
+              ]
+            }'
+    get:
+      operationId: configTable
+      summary: Describe table
+      description: Returns the table definition (schema/columns) and associated metadata for a given table.
+      tags:
+      - Tables
+      parameters:
+      - &id007
+        name: table
+        in: path
+        required: true
+        description: Table name
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success. Table definition is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DescribeTableResponse'
+              example:
+                description: Quote data
+                type: partitioned
+                blockSize: 10000
+                prtnCol: realTime
+                sortColsOrd:
+                - sym
+                sortColsDisk:
+                - sym
+                columns:
+                - name: time
+                  type: timespan
+                - name: sym
+                  type: symbol
+                  attrMem: grouped
+                  attrDisk: parted
+                  attrOrd: parted
+                - name: realTime
+                  type: timestamp
+                - name: bid
+                  type: float
+                - name: ask
+                  type: float
+                - name: bidSize
+                  type: long
+                - name: askSize
+                  type: long
+                name: quote
+        '404': &idTableNotFound
+          description: Not found (table does not exist)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleErrorResponse'
+              example:
+                error: 'Unknown table: forexx'
+        '503': *id503
+      x-codeSamples:
+      - lang: Python
+        label: Python
+        source: session.describe_table(table="quote")
+      - lang: q
+        label: q
+        source: |
+          session.describeTable["quote"]
+      - lang: cURL
+        label: cURL
+        source: |
+          curl -X GET "http://localhost:8080/api/v0/tables/quote" \
+            -H "Accept: application/json"
+    delete:
+      operationId: configTableDelete
+      summary: Drop table
+      description: Drops a table and its associated data.
+      tags:
+      - Tables
+      parameters:
+      - *id007
+      responses:
+        '202':
+          description: Table drop job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchIngestStatusResponse'
+              example:
+                name: c4ceac2c-664a-ce9c-aa5c-b1498f850d22
+                pipeline: ''
+                database: db
+                updtype: schemaChange
+                status: completed
+                details: []
+                tbls: []
+                dates: []
+                progress:
+                  cmdCurrent: ''
+                  cmdIndex: 0
+                  cmdTotal: 0
+                  subCurrent: ''
+                  subIndex: 0
+                  subTotal: 0
+                error: ''
+                warnings: []
+                updated: '2026-03-31T05:36:22.900404270'
+        '404': *idTableNotFound
+        '503': *id503
+      x-codeSamples:
+      - lang: Python
+        label: Python
+        source: session.drop_table(table="quote")
+      - lang: q
+        label: q
+        source: |
+          session.dropTable["quote"]
+      - lang: cURL
+        label: cURL
+        source: |
+          curl -X DELETE "http://localhost:8080/api/v0/tables/quote" \
+            -H "Accept: application/json"
+components:
+  schemas:
+
+    TableSpec:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 128
+          pattern: ^[A-Za-z][A-Za-z0-9_]*$
+        description:
+          type: string
+        type:
+          type: string
+          enum:
+          - partitioned
+          - splayed
+          - splayed_mem
+          - basic
+        blockSize:
+          type: integer
+          description: Block size for partitioned storage writes.
+          default: 10000
+          example: 10000
+        prtnCol:
+          type: string
+          description: |
+            Partition column to use for partitioned tables. The column chosen is your primary time filter: it is used by a query's `startTS`/`endTS` and determines the data layout on disk.
+
+              - Required when table `type="partitioned"`.
+              - `prtnCol` must reference a `timestamp` column.
+              - Always considered UTC.
+
+        sortColsMem:
+          type: array
+          items:
+            type: string
+          description: A list of columns to use for sorting columns in a memory tier. Setting this value will sort data as it arrives in memory.
+          example: [sym]
+        sortColsOrd:
+          type: array
+          items:
+            type: string
+          description: A list of columns to use for sorting columns in an ordinal partitioned tier. Setting this value will sort data as it migrates into ordinal partitions.
+          example: [sym]
+        sortColsDisk:
+          type: array
+          items:
+            type: string
+          description: A list of columns to use for sorting columns in a normal disk tier. Settings this value will sort data as it is migrated into disk partitions.
+          example: [sym]
+        primaryKeys:
+          type: array
+          items:
+            type: string
+          description: Names of columns to use as primary keys for this table. Primary keys identify unique rows. When provided, the table is keyed by these columns, and rows with matching keys update existing records.
+          example: [sym, realTime]
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/TableColumnSpec'
+      required:
+      - name
+      - columns
+      additionalProperties: false
+
+    CreateTableRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - partitioned
+          - splayed
+          - splayed_mem
+          - basic
+        prtnCol:
+          type: string
+          description: |
+            Partition column to use for partitioned tables. The column chosen is your primary time filter: it is used by a query's `startTS`/`endTS` and determines the data layout on disk.
+
+              - Required when table `type="partitioned"`.
+              - `prtnCol` must reference a `timestamp` column.
+              - Always considered UTC.
+
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/TableColumnSpec'
+        primaryKeys:
+          type: array
+          items:
+            type: string
+          description: Names of columns to use as primary keys for this table. Primary keys identify unique rows. When provided, the table is keyed by these columns, and rows with matching keys update existing records.
+          example: [sym, realTime]
+        blockSize:
+          type: integer
+          description: Block size for partitioned storage writes.
+          default: 10000
+          example: 10000
+        sortColsMem:
+          type: array
+          items:
+            type: string
+          description: A list of columns to use for sorting columns in a memory tier. Setting this value will sort data as it arrives in memory.
+          example: [sym]
+        sortColsOrd:
+          type: array
+          items:
+            type: string
+          description: A list of columns to use for sorting columns in an ordinal partitioned tier. Setting this value will sort data as it migrates into ordinal partitions.
+          example: [sym]
+        sortColsDisk:
+          type: array
+          items:
+            type: string
+          description: A list of columns to use for sorting columns in a normal disk tier. Settings this value will sort data as it is migrated into disk partitions.
+          example: [sym]
+        description:
+          type: string
+      oneOf:
+      - title: Partitioned table request
+        properties:
+          type:
+            enum: [partitioned]
+        required:
+        - prtnCol
+      - title: Non-partitioned table request
+        properties:
+          type:
+            enum: [splayed, splayed_mem, basic]
+      required:
+      - type
+      - columns
+      additionalProperties: false
+
+    TableColumnSpec:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: 'The name of the column in the table. Must be unique within the table and conform to kdb+ naming restrictions: avoid reserved primitives (`.Q.id`), reserved words `date`/`int`, and reserved prefix `label_`.'
+          example: sym
+        type:
+          type: string
+          description: The type of the column (for example `symbol`, `timestamp`, `float`, `long`).
+          example: symbol
+        description:
+          type: string
+          description: Optional textual description of the column for documentation purposes.
+          example: Instrument symbol
+        attrMem:
+          type: string
+          description: Column attribute to apply in memory (typically RDB tier). See [attribute details](https://code.kx.com/insights/microservices/database/configuration/assembly/schema.html#attributes).
+          example: grouped
+        attrOrd:
+          type: string
+          description: Column attribute to apply in ordinal partitions (typically IDB tier). See [attribute details](https://code.kx.com/insights/microservices/database/configuration/assembly/schema.html#attributes).
+          example: parted
+        attrDisk:
+          type: string
+          description: Column attribute to apply on disk partitions (typically HDB tier). See [attribute details](https://code.kx.com/insights/microservices/database/configuration/assembly/schema.html#attributes).
+          example: parted
+        # foreign:
+        #   type: string
+        #   description: Optional foreign-key reference in `table.column` form. If provided, this column type should match the referenced column type.
+        #   example: instruments.sym
+        # anymap:
+        #   type: boolean
+        #   description: Indicates if nested data can be stored as a memory-mapped anymap file. Compression is not currently supported for anymap columns.
+        #   default: false
+      required:
+      - name
+      - type
+
+    ErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                description: Stable, machine-readable error code.
+              title:
+                type: string
+                description: Short, human-readable summary.
+              detail:
+                type: string
+                description: Longer explanation for debugging.
+              retryable:
+                type: boolean
+                description: Whether the client may retry safely.
+            required:
+            - code
+            - title
+            - retryable
+            additionalProperties: false
+        meta:
+          type: object
+          properties:
+            corrId:
+              type: string
+            updatedAt:
+              type: string
+              format: date-time
+              description: Time this response was last updated.
+          required: [corrId, updatedAt]
+          additionalProperties: false
+      required:
+      - errors
+      - meta
+      additionalProperties: false
+    SimpleErrorResponse:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: string
+      additionalProperties: false
+    SuccessEnvelope:
+      type: object
+      required:
+      - data
+      - meta
+      properties:
+        data:
+          type: object
+        meta:
+          type: object
+          properties:
+            corrId:
+              type: string
+            updatedAt:
+              type: string
+              format: date-time
+              description: Time this response was last updated.
+          required: [corrId, updatedAt]
+          additionalProperties: false
+      additionalProperties: false
+    DropTableResponse:
+      allOf:
+      - $ref: '#/components/schemas/SuccessEnvelope'
+      - type: object
+        properties:
+          data:
+            type: object
+            additionalProperties: false
+            properties:
+              jobId:
+                type: string
+                description: Job identifier for tracking the schema change.
+              status:
+                type: string
+                enum: [pending, running, completed, failed, canceled]
+              statusUri:
+                type: string
+                format: uri-reference
+              startedAt:
+                type: string
+                format: date-time
+                description: Time the job started processing.
+              finishedAt:
+                type: string
+                format: date-time
+                nullable: true
+                description: Time the job finished; null while still running.
+              table:
+                type: string
+              warnings:
+                type: array
+                items:
+                  type: string
+            required:
+            - jobId
+            - status
+            - statusUri
+            - startedAt
+            - finishedAt
+            - table
+            - warnings
+        required:
+        - data
+
+    CreateTableResponse:
+      allOf:
+      - $ref: '#/components/schemas/SuccessEnvelope'
+      - type: object
+        properties:
+          data:
+            type: object
+            additionalProperties: false
+            properties:
+              status:
+                type: string
+                enum: [completed]
+                description: Status of the create-table operation.
+              startedAt:
+                type: string
+                format: date-time
+                description: Time processing started.
+              finishedAt:
+                type: string
+                format: date-time
+                description: Time processing finished.
+              table:
+                type: string
+                description: Table name.
+              warnings:
+                type: array
+                items:
+                  type: string
+            required:
+            - status
+            - startedAt
+            - finishedAt
+            - table
+            - warnings
+        required:
+        - data
+
+    DataIngestResponse:
+      allOf:
+      - $ref: '#/components/schemas/SuccessEnvelope'
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              table:
+                type: string
+              rowsInserted:
+                type: integer
+            required:
+            - table
+            - rowsInserted
+            additionalProperties: false
+        required:
+        - data
+
+    BatchIngestAcceptedResponse:
+      allOf:
+      - $ref: '#/components/schemas/SuccessEnvelope'
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              jobId:
+                type: string
+                description: Job identifier for tracking the batch ingest.
+              status:
+                type: string
+              statusUri:
+                type: string
+                description: Relative URI to poll for job status.
+                format: uri-reference
+              startedAt:
+                type: string
+                format: date-time
+                description: Time the job started processing.
+              finishedAt:
+                type: string
+                format: date-time
+                nullable: true
+                description: Time the job finished; null while still running.
+            required:
+            - jobId
+            - status
+            - statusUri
+            additionalProperties: false
+        required:
+        - data
+
+    BatchIngestStatusResponse:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Unique identifier for the import job.
+        pipeline:
+          type: string
+          description: Internal pipeline identifier used to process the job.
+        database:
+          type: string
+          description: Target database where the operation is applied.
+        updtype:
+          type: string
+          description: Type of operation being performed, such as file ingest, data ingest, kdb ingest, or cancel.
+        status:
+          type: string
+          description: Current state of the job, for example `pending`, `processing`, `completed`, `errored`, or `canceled`.
+        details:
+          description: Additional information about the resources affected by this job. Can be empty for schema operations.
+          oneOf:
+          - type: object
+            properties:
+              workerHandle:
+                type: integer
+                description: Internal worker handle processing this job.
+              preprocessDone:
+                type: string
+                description: Time preprocessing completed for this job.
+              subsessions:
+                type: array
+                items:
+                  type: string
+                description: Internal subsession identifiers used during processing.
+              dates:
+                type: array
+                items:
+                  type: string
+                  format: date
+                description: Date partitions affected by this job.
+              tables:
+                type: array
+                items:
+                  type: string
+                description: Tables affected by this job.
+            additionalProperties: false
+          - type: array
+            items: {}
+        tbls:
+          type: array
+          items:
+            type: string
+          description: Table or tables currently being processed by the job.
+        dates:
+          type: array
+          items:
+            type: string
+            format: date
+          description: Date partition or partitions currently being processed by the job.
+        progress:
+          type: object
+          description: Progress information for the job, including top-level and nested work units.
+          properties:
+            cmdCurrent:
+              type: string
+              description: Current top-level work unit i.e. date partition.
+            cmdIndex:
+              type: integer
+              nullable: true
+              description: Zero-based index of the current top-level work unit.
+            cmdTotal:
+              type: integer
+              nullable: true
+              description: Total number of top-level work units in the job.
+            subCurrent:
+              type: string
+              description: Current nested work unit i.e. table.
+            subIndex:
+              type: integer
+              nullable: true
+              description: Zero-based index of the current nested work unit.
+            subTotal:
+              type: integer
+              nullable: true
+              description: Total number of nested work units for the current top-level work unit.
+          additionalProperties: false
+        error:
+          type: string
+          description: Error message returned if the job fails.
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Non-fatal warnings generated while processing the job.
+        updated:
+          type: string
+          format: date-time
+          description: Timestamp of the most recent status update for this job.
+      required:
+      - name
+      - pipeline
+      - database
+      - updtype
+      - status
+      - updated
+      additionalProperties: false
+
+
+    FileIngestRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - table
+        - path
+      properties:
+        table:
+          type: string
+          description: Target table name.
+          example: quote
+        path:
+          type: string
+          description: 'Path to input data on the server filesystem.
+
+
+            Accepted forms:
+
+            - Single file
+
+            - Directory
+
+            - Glob pattern
+
+
+            Glob semantics:
+
+            - `*` matches within a single path segment (does not cross `/`).
+
+            - `**` matches across subdirectories, e.g. `quotes/**/quote*.csv`.
+
+
+            The service ingests all matched files.
+
+
+            Example values:
+
+            - `quote.csv`
+
+            - `quotes/`
+
+            - `quote_2026-01-*.csv`
+
+            - `quotes/**/quote*.csv`
+
+            '
+          example: quote.csv
+        format:
+          type: string
+          description: Input data format. If omitted, the service may auto-detect it from the file(s).
+          enum:
+          - qbinary
+          - csv
+          - parquet
+        mode:
+          type: string
+          description: 'Optional ingest mode. If omitted, the service uses `merge` behavior. Mode behavior is applied per partition.'
+          enum:
+          - overwrite
+          - merge
+          default: merge
+        delimiter:
+          type: string
+          description: Delimiter character for delimited text. Ignored for parquet and qbinary.
+          default: ','
+        decimal:
+          type: string
+          description: Decimal separator character for delimited text. Ignored for parquet and qbinary.
+          default: .
+          example: .
+        createTable:
+          type: boolean
+          description: If true and the table does not exist, create it prior to ingest.
+          default: false
+        header:
+          type: array
+          items:
+            type: string
+          description: 'If the file has headers, this is optional.
+
+
+            If provided, it overrides header names by position.
+
+
+            If the file has no headers and either postparse is used or the file has unused columns, this is required (names by position).
+
+
+            If createTable=true and the table doesn’t exist, these headers are used as the new table’s column names.
+
+            '
+          example:
+          - time
+          - sym
+          - realTime
+          - bid
+          - ask
+          - bidSize
+          - askSize
+        include:
+          type: array
+          items:
+            type: string
+          description: 'Optional list of column names to ingest (and their order).
+
+
+            Only these columns are kept.
+
+
+            Applied after both headers are resolved & postparse is applied.
+
+            '
+          example:
+          - sym
+          - realTime
+          - bid
+          - ask
+        types:
+          type: string
+          description: Optional type string in CSV parse format (uppercase), e.g. F=float, J=long, P=timestamp, S=symbol, *=string. See https://code.kx.com/q/ref/tok/ for full details.
+          example: SPFF
+        postparse:
+          type: object
+          additionalProperties:
+            type: string
+          description: |
+            A dictionary of data transforms, made up of column names as keys and q expression strings as values.
+
+
+            Existing columns can be modified, and new ones created. 
+            
+            Columns from the file are available for use in the expression via a `data` dictionary variable, and the file name is available via a `path` string variable.
+
+            For example: {'timestamp': 'data[&#96;date]+data[&#96;time]'}.
+
+            Runs after loading and parsing (including typecasting) of data in the file is done.
+
+            Note that columns used as inputs in the transform are by default not included after use, therefore must be re-added if they are required. 
+            
+            For example, to preserve the date column in the above, the `postparse` dictionary should be: {'timestamp': 'data[&#96;date]+data[&#96;time]', 'date': 'data[`date]'}
+
+        headerRowIndex:
+          type: integer
+          description: Header row index (0-based). Use -1 when there is no header row.
+          default: 0
+          example: 0
+
+    KdbIngestRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - path
+      properties:
+        path:
+          type: string
+          description: Path to a kdb-native data location readable by the service, such as a partitioned HDB directory, a parent directory containing one or more splayed tables, or a parent directory containing basic/q-binary tables. Path is resolved relative to the configured import root.
+        mode:
+          type: string
+          description: 'Optional ingest mode. If omitted, the service uses `merge` behavior. Mode behavior is applied per partition.'
+          enum:
+          - overwrite
+          - merge
+          default: merge
+        createTable:
+          type: boolean
+          description: If true and the target table does not exist, create it before ingest.
+          default: false
+
+    DataIngestRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - table
+        - data
+      properties:
+        table:
+          type: string
+          description: Target table name.
+        data:
+          oneOf:
+          - type: array
+            description: Array of rows; each row is an array of values aligned to column order.
+            items:
+              type: array
+              items: {}
+          - type: array
+            description: Array of row objects; each object is a row with column names as keys.
+            items:
+              type: object
+              additionalProperties: false
+        createTable:
+          type: boolean
+          default: false
+        mode:
+          type: string
+          description: 'Optional ingest mode. If omitted, the service uses `merge` behavior. Mode behavior is applied per partition.'
+          enum:
+          - overwrite
+          - merge
+          default: merge
+        columnNames:
+          type: array
+          items:
+            type: string
+        types:
+          type: string
+          description: Optional type string (case-sensitive), e.g. f=float, j=long, p=timestamp, s=symbol, C=string, *=generic list. See https://code.kx.com/q/ref/cast/ for full details.
+
+    StructuredRequest:
+      type: object
+      properties:
+        table:
+          type: string
+          description: Table name
+          x-kx-type: -11h
+        startTS:
+          description: Inclusive start of timestamp range
+          type: string
+          x-kx-type: -12h
+        endTS:
+          description: Exclusive end of timestamp range
+          type: string
+          x-kx-type: -12h
+        inputTZ:
+          description: |
+            Timezones should be supplied in [tz database format](https://timezonedb.com/download), for example `America/New_York` or `Europe/London`. `inputTZ` is used to interpret `startTS` and `endTS`.
+          type: string
+        outputTZ:
+          description: |
+            Timezones should be supplied in [tz database format](https://timezonedb.com/download), for example `America/New_York` or `Europe/London`. `outputTZ` is used for timestamp conversion in query output.
+          type: string
+        outputTZCols:
+          description: Columns that should be converted to 'outputTZ'
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+              x-kx-type: -11h
+        filter:
+          description: |
+            The `filter` parameter takes a list of filter triples in the following form: 
+            
+            - `[operator, column, values]`
+
+            It is also possible to nest filters with the logical operators `and`, `not`, and `or`, for example:
+            
+            - `["and", ["=", "size", 100], ["<", "price", 500]]`
+
+            Supported filter operators are `=`, `<>`, `<`, `>`, `<=`, `>=`, `in`, `like`, `within`.
+
+          type: array
+          items:
+            oneOf:
+            - type: string
+            - type: array
+        groupBy:
+          description: A list of column names to group by
+          type: array
+          items:
+            type: string
+            x-kx-type: -11h
+        agg:
+          description: |
+            `agg` controls what the query returns. Use it to select columns, rename columns, or compute aggregated values.
+
+            1. A simple list of column names specifies what columns to include in the result:
+
+              ```json
+              ["sym", "bid", "ask"]
+              ```
+
+            2. A list of tuples specifies what columns to include in the result, and renames them:
+
+              ```json
+              [["Symbol", "sym"], ["BidPrice", "bid"], ["AskPrice", "ask"]]
+              ```
+
+            3. A list of triples runs the given aggregation function on the specified column and renames it:
+
+              ```json
+              [
+                ["o", "first", "bid"],
+                ["h", "max", "bid"],
+                ["l", "min", "bid"],
+                ["c", "last", "bid"]
+              ]
+              ```
+
+            Available aggregation functions are:
+
+            [all](https://code.kx.com/q/ref/all-any/), [any](https://code.kx.com/q/ref/all-any/), [avg](https://code.kx.com/q/ref/avg/), [cor](https://code.kx.com/q/ref/cov/), [count](https://code.kx.com/q/ref/count/), [cov](https://code.kx.com/q/ref/cov/), [dev](https://code.kx.com/q/ref/dev/), [distinct](https://code.kx.com/q/ref/distinct/), [first](https://code.kx.com/q/ref/first/), [last](https://code.kx.com/q/ref/first/), [max](https://code.kx.com/q/ref/max/), [min](https://code.kx.com/q/ref/min/), [prd](https://code.kx.com/q/ref/prd/), [scov](https://code.kx.com/q/ref/cov/), [sdev](https://code.kx.com/q/ref/dev/), [sum](https://code.kx.com/q/ref/sum/), [svar](https://code.kx.com/q/ref/cov/), [var](https://code.kx.com/q/ref/cov/), [wavg](https://code.kx.com/q/ref/avg/), [wsum](https://code.kx.com/q/ref/sum/).
+
+            Note: [distinct](https://code.kx.com/q/ref/distinct/) always returns a list.
+
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+              x-kx-type: -11h
+        fill:
+          description: '`fill` can be used to fill in null values:
+
+
+            - `forward` will replace nulls with the previous non-null value.
+
+            - `zero` will replace nulls with the 0 equivalent value of the column type.
+
+            '
+          type: string
+          x-kx-type: -11h
+        temporality:
+          type: string
+          description: |
+            Temporality controls how the query interprets the time range between `startTS` and `endTS`.
+
+            Supported values are:
+
+            - `snapshot`  Returns one continuous block of data from `startTS` to `endTS`. This is the default if temporality is not specified.
+
+            - `slice`  Returns data between the time of `startTS` and the time of `endTS` for each day in the date range. For example, if `startTS` is `2021.01.01D10:00:00` and `endTS` is `2021.01.03D13:00:00`, data is returned from `10:00:00` to `13:00:00` on each of these dates:
+
+              - 2021.01.01
+              - 2021.01.02
+              - 2021.01.03
+          x-kx-type: -11h
+        sortCols:
+          description: Columns to be sorted, post query execution
+          type: array
+          items:
+            type: string
+            x-kx-type: -11h
+        limit:
+          description: Limit of rows to return
+          type: array
+          items:
+            type: integer
+            x-kx-type: -6h
+      required:
+      - table
+
+    QueryGatewayError:
+      type: object
+      properties:
+        header:
+          type: object
+          properties:
+            corr:
+              type: string
+            logCorr:
+              type: string
+            rcvTS:
+              type: string
+            http:
+              type: string
+            api:
+              type: string
+            agg:
+              type: string
+            refVintage:
+              type: integer
+            rc:
+              type: integer
+            ac:
+              type: integer
+            ai:
+              type: string
+          required:
+          - corr
+          - logCorr
+          - rcvTS
+          - http
+          - api
+          - agg
+          - refVintage
+          - rc
+          - ac
+          - ai
+        payload:
+          type: array
+          items: {}
+      required:
+      - header
+      - payload
+
+    ErrorQueryResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              title:
+                type: string
+              retryable:
+                type: boolean
+            required:
+            - code
+            - message
+            - retryable
+            additionalProperties: false
+        meta:
+          type: object
+          properties:
+            corrId:
+              type: string
+            updatedAt:
+              type: string
+              format: date-time
+              description: Time this response was last updated.
+            rcvTS:
+              type: string
+            http:
+              type: string
+            api:
+              type: string
+            agg:
+              type: string
+            refVintage:
+              type: integer
+            rc:
+              type: integer
+            ac:
+              type: integer
+          required: [corrId, updatedAt]
+          additionalProperties: false
+      required:
+      - errors
+      - meta
+      additionalProperties: false
+
+    QueryResponse:
+      type: object
+      properties:
+        header:
+          $ref: '#/components/schemas/QueryHeader'
+        payload:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+      required:
+      - header
+      - payload
+
+    QueryHeader:
+      type: object
+      properties:
+        corr:
+          type: string
+        logCorr:
+          type: string
+        rcvTS:
+          type: string
+        http:
+          type: string
+        api:
+          type: string
+        agg:
+          type: string
+        refVintage:
+          type: integer
+        rc:
+          type: integer
+        ac:
+          type: integer
+        ai:
+          type: string
+        limitApplied:
+          type: boolean
+      required:
+      - corr
+      - logCorr
+      - rcvTS
+      - http
+      - api
+      - agg
+      - refVintage
+      - rc
+      - ac
+      - ai
+
+    SqlRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: SQL expression. Must be a `SELECT`. No `INSERT`, `DROP`, or other extension is allowed.
+      required:
+      - query
+
+    QSqlRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Freeform q query
+        agg:
+          type: string
+          description: |
+            The gateway concatenates query results from each tier (RDB, IDB, HDB) by performing a `raze`. `agg` specifies a q lambda to be used instead. It can be specified as either:
+
+
+            - A unary function, for example `"distinct"`.
+
+            - A composition of named unary functions, for example `"'[distinct;raze]"`.
+
+            - A unary lambda, for example `"{distinct raze x}"`.
+
+      required:
+      - query
+
+    ListTablesResponse:
+      allOf:
+      - $ref: '#/components/schemas/SuccessEnvelope'
+      - type: object
+        properties:
+          data:
+            type: array
+            items:
+              type: string
+            description: List of table names.
+        required:
+        - data
+
+    DescribeTableResponse:
+      $ref: '#/components/schemas/TableSpec'
