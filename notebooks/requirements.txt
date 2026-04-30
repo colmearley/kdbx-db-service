@@ -1,0 +1,17 @@
+# Allow pre-release packages
+--pre
+# Use the KX package index as an extra source
+--extra-index-url https://portal.dl.kx.com/assets/pypi/
+# JupyterLab UI
+jupyterlab
+# Classic notebook support
+notebook
+# HTTP client used by examples
+requests
+# Bash kernel for shell-based notebook cells
+bash_kernel
+# DB Service Python client
+# dbservice-client
+kdbx-db-service-client
+# PyKX package
+pykx>=4.0.0b5
