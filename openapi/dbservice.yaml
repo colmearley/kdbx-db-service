@@ -127,34 +127,30 @@ paths:
       x-codeSamples:
       - lang: Python
         label: Python
-        source: "session.query_simple(\n    table=\"quote\",\n    startTS=\"2026.01.29\"\
-          ,\n    endTS=\"2026.01.30\",\n    filter=[\"sym=`AAPL\"],\n    groupBy=[\"\
-          sym\"],\n    agg=[\"avgBid:avg bid\"]\n)"
+        source: |
+          session.query_simple(
+              table="fxquote",
+              startTS="2026.03.02D00:00:00.000",
+              endTS="2026.03.03D00:00:00.000",
+              sortCols=["ts"],
+              limit=5,
+          )
       - lang: q
         label: q
         source: |
-          session.querySimple[
-            "quote";
-            "2026.01.29";
-            "2026.01.30";
-            ("sym=`AAPL");
-            ("sym");
-            ("avgBid:avg bid")
-          ]
+          session.querySimple[`table`startTS`endTS`sortCols`limit!(`fxquote;2026.03.02D;2026.03.03D;enlist "ts"; 5)]
       - lang: cURL
         label: cURL
         source: |
-          curl -X POST "http://localhost:8080/api/v0/query/simple" \
-            -H "Content-Type: application/json" \
+          curl -s -X POST "http://localhost:8080/api/v0/query/simple" \
             -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
             -d '{
-              "table":"quote",
-              "startTS":"2026.02.09",
-              "endTS":"2026.02.12",
-              "filter":["sym=`AAPL"],
-              "groupBy":["sym"],
-              "agg":["avgBid:avg bid"]
-            }'
+              "table": "fxquote",
+              "startTS": "2026.03.02D00:00:00",
+              "endTS": "2026.03.03D00:00:00",
+              "limit": 2
+            }' | jq
   /api/v0/query/sql:
     post:
       tags:
@@ -232,18 +228,19 @@ paths:
       x-codeSamples:
       - lang: Python
         label: Python
-        source: session.query_sql(query="SELECT bid,sym FROM quote WHERE date='2026-01-30'")
+        source: |
+          session.query_sql(query="SELECT * FROM instruments WHERE category LIKE 'EM'")
       - lang: q
         label: q
         source: |
-          session.querySQL[enlist[`query]!enlist "SELECT bid,sym FROM quote WHERE date='2026-01-30'"]
+          session.querySQL[enlist[`query]!enlist "SELECT * FROM instruments WHERE category LIKE 'EM'"]
       - lang: cURL
         label: cURL
         source: |
           curl -s -X POST "http://localhost:8080/api/v0/query/sql" \
-            -H "Content-Type: application/json" \
             -H "Accept: application/json" \
-            -d '{"query":"SELECT bid,sym FROM quote WHERE date='\''2026-01-30'\''"}'
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT * FROM instruments WHERE category LIKE '\''EM'\''"}' | jq
   /api/v0/query/q:
     post:
       tags:
@@ -320,18 +317,19 @@ paths:
       x-codeSamples:
       - lang: Python
         label: Python
-        source: session.query_q(query="select bid by sym from quote", agg="sum")
+        source: |
+          session.query_q(query="select o:first bid,h:max bid,l:min bid,c:last bid by trddate,sym from fxquote")
       - lang: q
         label: q
         source: |
-          session.queryQ[enlist[`query]!enlist["select bid by sym from quote"]]
+          session.queryQ[enlist[`query]!enlist "select o:first bid,h:max bid,l:min bid,c:last bid by trddate,sym from fxquote"]
       - lang: cURL
         label: cURL
         source: |
           curl -s -X POST "http://localhost:8080/api/v0/query/q" \
-            -H "Content-Type: application/json" \
             -H "Accept: application/json" \
-            -d '{"query":"select bid by sym from quote","agg":"sum"}'
+            -H "Content-Type: application/json" \
+            -d '{"query": "select o:first bid,h:max bid,l:min bid,c:last bid by trddate,sym from fxquote"}' | jq
   /api/v0/imports/{jobId}:
     get:
       tags:
@@ -427,8 +425,9 @@ paths:
       - lang: cURL
         label: cURL
         source: |
-          curl -X GET "http://localhost:8080/api/v0/imports/3fa85f64-5717-4562-b3fc-2c963f66afa6" \
-            -H "Accept: application/json"
+          curl -X GET "http://localhost:8080/api/v0/imports/NAME" \
+            -H "Accept: application/json" | jq
+          # Note: Replace `NAME` above, with the "name" value returned from the import job.
     delete:
       tags:
       - Imports
@@ -477,8 +476,9 @@ paths:
       - lang: cURL
         label: cURL
         source: |
-          curl -X DELETE "http://localhost:8080/api/v0/imports/3fa85f64-5717-4562-b3fc-2c963f66afa6" \
-            -H "Accept: application/json"
+          curl -X DELETE "http://localhost:8080/api/v0/imports/NAME" \
+            -H "Accept: application/json" | jq
+          # Note: Replace `NAME` above, with the "name" value returned from the import job.
   /api/v0/imports/files:
     post:
       tags:
@@ -581,86 +581,104 @@ paths:
       x-codeSamples:
       - lang: Python
         label: Python (minimal request)
-        source: session.import_files(table="quote",path="quote.csv")
+        source: |
+          session.import_files(
+            table="fxquote",
+            path="fxquote.parquet"
+          )
       - lang: Python
         label: Python (standard file ingest)
-        source: "session.import_files(\n    table=\"quote\",\n    path=\"quote.csv\"\
-          ,\n    format=\"csv\",\n    delimiter=\",\",\n    decimal=\".\",\n    headerRowIndex=0\n\
-          )"
+        source: |
+          session.import_files(
+            table="fxquote", 
+            path="fxquote.csv.gz", 
+            format="csv", 
+            delimiter=",", 
+            decimal=".", 
+            headerRowIndex= 0
+          )
       - lang: Python
-        label: Python (create table)
-        source: "session.import_files(\n    table=\"quote\",\n    path=\"quote.csv\"\
-          ,\n    format=\"csv\",\n    delimiter=\",\",\n    decimal=\".\",\n    createTable=True,\n\
-          \    header=[\"time\", \"sym\", \"realTime\", \"bid\", \"ask\", \"bidSize\"\
-          , \"askSize\"],\n    include=[\"bid\", \"ask\"],\n    types=\"   FF  \",\n  \
-          \  headerRowIndex=0\n)"
+        label: Python (includes postparse)
+        source: | 
+          session.import_files(
+            table="forex", 
+            path="forex.csv", 
+            format="csv", 
+            types="SFFDV", 
+            postparse="{\"time\": \"data[`date] + data`time\"}"
+          )
+      - lang: Python
+        label: Python (ingest + auto create table)
+        source: |
+          session.import_files(
+            table="instruments", 
+            path="instruments.csv", 
+            createTable=True
+          )
       - lang: q
         label: q (minimal request)
         source: |
-          session.importFiles[`table`path!("quote";"quote.csv")]
+          session.importFiles[`table`path!("fxquote";"fxquote.parquet")]
       - lang: q
         label: q (standard file ingest)
         source: |
-          session.importFiles[`table`path`format`delimiter`decimal`headerRowIndex!("quote";"quote.csv";"csv";",";".";0)]
+          session.importFiles[`table`path`format`delimiter`decimal`headerRowIndex!("fxquote";"fxquote.csv.gz";"csv";",";".";0)]
       - lang: q
-        label: q (create table)
+        label: q (includes postparse)
         source: |
-          session.importFiles[`table`path`format`delimiter`decimal`createTable`header`include`types`headerRowIndex!("quote";"quote.csv";"csv";",";".";1b;("time";"sym";"realTime";"bid";"ask";"bidSize";"askSize");("bid";"ask");"   FF  ";0)]
+          session.importFiles[`table`path`format`types`postparse!("forex";"forex.csv";"csv";"SFFDV";{"time": "data[`date] + data`time"})]
+      - lang: q
+        label: q (ingest + auto create table)
+        source: |
+          session.importFiles[`table`path`createTable!("instruments";"instruments.csv";1b)]
       - lang: cURL
         label: cURL (minimal request)
         source: |
-          curl -X POST "http://localhost:8080/api/v0/imports/files" \
-            -H "Content-Type: application/json" \
+          curl -s -X POST "http://localhost:8080/api/v0/imports/files" \
             -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
             -d '{
-              "table": "quote",
-              "path": "quote.csv"
-            }'
+              "table": "fxquote",
+              "path": "fxquote.parquet"
+            }' | jq
       - lang: cURL
         label: cURL (standard file ingest)
         source: |
-          curl -X POST "http://localhost:8080/api/v0/imports/files" \
-            -H "Content-Type: application/json" \
+          curl -s -X POST "http://localhost:8080/api/v0/imports/files" \
             -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
             -d '{
-              "table": "quote",
-              "path": "quote.csv",
+              "table": "fxquote",
+              "path": "fxquote.csv.gz",
               "format": "csv",
               "delimiter": ",",
               "decimal": ".",
               "headerRowIndex": 0
-            }'
+            }' | jq
       - lang: cURL
         label: cURL (includes postparse)
         source: |
-          curl -X POST "http://localhost:8080/api/v0/imports/files" \
-            -H "Content-Type: application/json" \
+          curl -s -X POST "http://localhost:8080/api/v0/imports/files" \
             -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
             -d '{
               "table": "forex",
               "path": "forex.csv",
               "format": "csv",
               "types": "SFFDV",
               "postparse": {"time": "data[`date] + data`time"}
-            }'
+            }' | jq
       - lang: cURL
-        label: cURL (create table)
+        label: cURL (ingest + auto create table)
         source: |
-          curl -X POST "http://localhost:8080/api/v0/imports/files" \
-            -H "Content-Type: application/json" \
+          curl -s -X POST "http://localhost:8080/api/v0/imports/files" \
             -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
             -d '{
-              "table": "quote",
-              "path": "quote.csv",
-              "format": "csv",
-              "delimiter": ",",
-              "decimal": ".",
-              "createTable": true,
-              "header": ["time", "sym", "realTime", "bid", "ask", "bidSize", "askSize"],
-              "include": ["bid", "ask"],
-              "types": "   FF  ",
-              "headerRowIndex": 0
-            }'
+              "table": "instruments", 
+              "path": "instruments.csv", 
+              "createTable": "1"
+            }' | jq
   /api/v0/imports/kdb:
     post:
       tags:
@@ -702,21 +720,18 @@ paths:
       x-codeSamples:
       - lang: Python
         label: Python
-        source: session.import_database(path="kdbdata", mode="merge")
+        source: session.import_database(path="fxquote-hdb")
       - lang: q
         label: q
         source: |
-          session.importKDB[`table`path!("sensor";"kdbdata")]
+          session.importKDB[enlist[`path]!enlist"fxquote-hdb"]
       - lang: cURL
         label: cURL
         source: |
           curl -X POST "http://localhost:8080/api/v0/imports/kdb" \
-            -H "Content-Type: application/json" \
             -H "Accept: application/json" \
-            -d '{
-              "path": "kdbdata",
-              "mode": "merge"
-            }'
+            -H "Content-Type: application/json" \
+            -d '{"path": "fxquote-hdb"}' | jq
   /api/v0/imports/data:
     post:
       tags:
@@ -816,133 +831,70 @@ paths:
         '503': *id503
       x-codeSamples:
       - lang: Python
-        label: Python (row matrix)
-        source: "session.import_data(\n    table=\"quote\",\n    data=[\n        [\"0D10:00:00.000000000\"\
-          , \"AAPL\", \"2026-01-21T10:00:00.000\", 101.1, 101.2, 100, 120],\n    \
-          \    [\"0D10:00:01.000000000\", \"AAPL\", \"2026-01-21T10:00:01.000\", 101.2,\
-          \ 101.3, 110, 130],\n    ],\n)"
+        label: Python (Rows payload)
+        source: |
+          session.import_data(
+            table="fxquote",
+            data=[
+              ["2026-01-21", "2026-01-21T10:00:00.000", "EURUSD", 901.2, 901.3],
+              ["2026-01-21", "2026-01-21T10:00:00.000", "EURUSD", 901.2, 901.3]
+            ],
+            columnNames=["trddate", "ts", "sym", "bid", "ask"],
+            insert_as="rows"
+          )
+          # Note: for rows payload, columnNames are required.
       - lang: Python
-        label: Python (JSON objects)
-        source: "session.import_data(\n    table=\"quote\",\n    data=[\n        {\n  \
-          \          \"time\": \"0D10:00:00.000000000\",\n            \"sym\": \"\
-          AAPL\",\n            \"realTime\": \"2026-01-21T10:00:00.000\",\n      \
-          \      \"bid\": 101.1,\n            \"ask\": 101.2,\n            \"bidSize\"\
-          : 100,\n            \"askSize\": 120,\n        },\n        {\n         \
-          \   \"time\": \"0D10:00:01.000000000\",\n            \"sym\": \"AAPL\",\n\
-          \            \"realTime\": \"2026-01-21T10:00:01.000\",\n            \"\
-          bid\": 101.2,\n            \"ask\": 101.3,\n            \"bidSize\": 110,\n\
-          \            \"askSize\": 130,\n        },\n    ],\n)"
-      - lang: Python
-        label: Python (row matrix — create table)
-        source: "session.import_data(\n    table=\"quote\",\n    data=[\n        [\"0D10:00:00.000000000\"\
-          , \"AAPL\", \"2026-01-21T10:00:00.000\", 101.1, 101.2, 100, 120],\n    \
-          \    [\"0D10:00:01.000000000\", \"AAPL\", \"2026-01-21T10:00:01.000\", 101.2,\
-          \ 101.3, 110, 130],\n    ],\n    createTable=True,\n    columnNames=[\"\
-          time\", \"sym\", \"realTime\", \"bid\", \"ask\", \"bidSize\", \"askSize\"\
-          ],\n    types=\"NSPFFJJ\",\n)"
-      - lang: Python
-        label: Python (JSON objects — create table)
-        source: "session.import_data(\n    table=\"quote\",\n    data=[\n        {\n  \
-          \          \"time\": \"0D10:00:00.000000000\",\n            \"sym\": \"\
-          AAPL\",\n            \"realTime\": \"2026-01-21T10:00:00.000\",\n      \
-          \      \"bid\": 101.1,\n            \"ask\": 101.2,\n            \"bidSize\"\
-          : 100,\n            \"askSize\": 120,\n        },\n        {\n         \
-          \   \"time\": \"0D10:00:01.000000000\",\n            \"sym\": \"AAPL\",\n\
-          \            \"realTime\": \"2026-01-21T10:00:01.000\",\n            \"\
-          bid\": 101.2,\n            \"ask\": 101.3,\n            \"bidSize\": 110,\n\
-          \            \"askSize\": 130,\n        },\n    ],\n    createTable=True,\n\
-          \    columnNames=[\"time\", \"sym\", \"realTime\", \"bid\", \"ask\", \"\
-          bidSize\", \"askSize\"],\n    types=\"NSPFFJJ\",\n)"
+        label: Python (Objects payload)
+        source: | 
+          session.import_data(
+            table="instruments",
+            data=[
+              {"instrumentid":77, "sym":"USDBRL", "category":"EM", "decimals":4, "pipdecimals": 4},
+              {"instrumentid":78, "sym":"USDKRW", "category":"EM", "decimals":2, "pipdecimals": 2},
+            ],
+            insert_as="objects"
+          )
       - lang: q
-        label: q (row matrix)
+        label: q (Rows payload)
         source: |
-          rows:(
-            ("0D10:00:00.000000000";"AAPL";"2026-01-21T10:00:00.000";101.1;101.2;100;120);
-            ("0D10:00:01.000000000";"AAPL";"2026-01-21T10:00:01.000";101.2;101.3;110;130)
-          );
-          session.importData[`table`data!(`quote;rows)]
+          data:(("2026-01-21";"2026-01-21T10:00:00.000";"EURUSD";901.2;901.3);("2026-01-21";"2026-01-21T10:00:00.000";"EURUSD";901.2;901.3));
+          session.importData[`table`data`columnNames!(`fxquote;data;(`trddate`ts`sym`bid`ask))]
+          # Note: for rows payload, columnNames are required.
       - lang: q
-        label: q (JSON objects)
+        label: q (Objects payload)
         source: |
-          rows:(
-            `time`sym`realTime`bid`ask`bidSize`askSize!("0D10:00:00.000000000";"AAPL";"2026-01-21T10:00:00.000";101.1;101.2;100;120);
-            `time`sym`realTime`bid`ask`bidSize`askSize!("0D10:00:01.000000000";"AAPL";"2026-01-21T10:00:01.000";101.2;101.3;110;130)
-          );
-          session.importData[`table`data!(`quote;rows)]
-      - lang: q
-        label: q (row matrix — create table)
-        source: |
-          rows:(
-            ("0D10:00:00.000000000";"AAPL";"2026-01-21T10:00:00.000";101.1;101.2;100;120);
-            ("0D10:00:01.000000000";"AAPL";"2026-01-21T10:00:01.000";101.2;101.3;110;130)
-          );
-          session.importData[`table`data`createTable`columnNames`types!(`quote;rows;1b;("time";"sym";"realTime";"bid";"ask";"bidSize";"askSize");"NSPFFJJ")]
-      - lang: q
-        label: q (JSON objects — create table)
-        source: |
-          rows:(
-            `time`sym`realTime`bid`ask`bidSize`askSize!("0D10:00:00.000000000";"AAPL";"2026-01-21T10:00:00.000";101.1;101.2;100;120);
-            `time`sym`realTime`bid`ask`bidSize`askSize!("0D10:00:01.000000000";"AAPL";"2026-01-21T10:00:01.000";101.2;101.3;110;130)
-          );
-          session.importData[`table`data`createTable`columnNames`types!(`quote;rows;1b;("time";"sym";"realTime";"bid";"ask";"bidSize";"askSize");"NSPFFJJ")]
+          data:((`instrumentid`sym`category`decimals`pipdecimals)!(77;"USDBRL";"EM";4;4);(`instrumentid`sym`category`decimals`pipdecimals)!(78;"USDKRW";"EM";2;2));
+          session.importData[`table`data!(`instruments;data)]
       - lang: cURL
-        label: cURL (row matrix)
+        label: cURL (Rows payload)
         source: |
-          curl -X POST "http://localhost:8080/api/v0/imports/data" \
-            -H "Content-Type: application/json" \
+          curl -s -X POST "http://localhost:8080/api/v0/imports/data" \
             -H "Accept: application/json" \
-            -d '{
-              "table": "quote",
-              "data": [
-                ["0D10:00:00.000000000", "AAPL", "2026-01-21T10:00:00.000", 101.1, 101.2, 100, 120],
-                ["0D10:00:01.000000000", "AAPL", "2026-01-21T10:00:01.000", 101.2, 101.3, 110, 130]
-              ]
-            }'
-      - lang: cURL
-        label: cURL (JSON objects)
-        source: |
-          curl -X POST "http://localhost:8080/api/v0/imports/data" \
             -H "Content-Type: application/json" \
-            -H "Accept: application/json" \
             -d '{
-              "table": "quote",
+              "table": "fxquote",
               "data": [
-                {"time":"0D10:00:00.000000000","sym":"AAPL","realTime":"2026-01-21T10:00:00.000","bid":101.1,"ask":101.2,"bidSize":100,"askSize":120},
-                {"time":"0D10:00:01.000000000","sym":"AAPL","realTime":"2026-01-21T10:00:01.000","bid":101.2,"ask":101.3,"bidSize":110,"askSize":130}
-              ]
-            }'
-      - lang: cURL
-        label: cURL (row matrix — create table)
-        source: |
-          curl -X POST "http://localhost:8080/api/v0/imports/data" \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/json" \
-            -d '{
-              "table": "quote",
-              "data": [
-                ["0D10:00:00.000000000", "AAPL", "2026-01-21T10:00:00.000", 101.1, 101.2, 100, 120],
-                ["0D10:00:01.000000000", "AAPL", "2026-01-21T10:00:01.000", 101.2, 101.3, 110, 130]
+                ["2026-01-21", "2026-01-21T10:00:00.000", "EURUSD", 901.2, 901.3],
+                ["2026-01-21", "2026-01-21T10:00:00.000", "EURUSD", 901.2, 901.3]
               ],
-              "createTable": true,
-              "columnNames": ["time", "sym", "realTime", "bid", "ask", "bidSize", "askSize"],
-              "types": "NSPFFJJ"
-            }'
+              "columnNames": ["trddate", "ts", "sym", "bid", "ask"],
+              "insert_as": "rows"
+            }' | jq
+          # Note: for rows payload, columnNames are required.
       - lang: cURL
-        label: cURL (JSON objects — create table)
+        label: cURL (Objects payload)
         source: |
-          curl -X POST "http://localhost:8080/api/v0/imports/data" \
-            -H "Content-Type: application/json" \
+          curl -s -X POST "http://localhost:8080/api/v0/imports/data" \
             -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
             -d '{
-              "table": "quote",
+              "table": "instruments",
               "data": [
-                {"time":"0D10:00:00.000000000","sym":"AAPL","realTime":"2026-01-21T10:00:00.000","bid":101.1,"ask":101.2,"bidSize":100,"askSize":120},
-                {"time":"0D10:00:01.000000000","sym":"AAPL","realTime":"2026-01-21T10:00:01.000","bid":101.2,"ask":101.3,"bidSize":110,"askSize":130}
+                {"instrumentid": 77, "sym": "USDBRL", "category": "EM", "decimals": 4, "pipdecimals": 4},
+                {"instrumentid": 78, "sym": "USDKRW", "category": "EM", "decimals": 2, "pipdecimals": 2}
               ],
-              "createTable": true,
-              "columnNames": ["time", "sym", "realTime", "bid", "ask", "bidSize", "askSize"],
-              "types": "NSPFFJJ"
-            }'
+              "insert_as": "objects"
+            }' | jq
   /api/v0/tables:
     get:
       operationId: listTables
@@ -981,8 +933,8 @@ paths:
       - lang: cURL
         label: cURL
         source: |
-          curl -X GET "http://localhost:8080/api/v0/tables" \
-            -H "Accept: application/json"
+          curl -s -X GET "http://localhost:8080/api/v0/tables" \
+            -H "Accept: application/json" | jq
   /api/v0/tables/{table}:
     post:
       operationId: configTableCreate
@@ -1077,93 +1029,82 @@ paths:
       x-codeSamples:
       - lang: Python
         label: Python (full schema)
-        source: "session.create_table(\n    table=\"quote\",\n    description=\"Quote data\"\
-          ,\n    type=\"partitioned\",\n    blockSize=10000,\n    prtnCol=\"realTime\"\
-          ,\n    sortColsOrd=[\"sym\"],\n    sortColsDisk=[\"sym\"],\n    columns=[\n\
-          \        {\"name\": \"time\", \"type\": \"timespan\"},\n        {\"name\"\
-          : \"sym\", \"type\": \"symbol\", \"attrMem\": \"grouped\", \"attrDisk\"\
-          : \"parted\", \"attrOrd\": \"parted\"},\n        {\"name\": \"realTime\"\
-          , \"type\": \"timestamp\"},\n        {\"name\": \"bid\", \"type\": \"float\"\
-          },\n        {\"name\": \"ask\", \"type\": \"float\"},\n        {\"name\"\
-          : \"bidSize\", \"type\": \"long\"},\n        {\"name\": \"askSize\", \"\
-          type\": \"long\"},\n    ],\n)"
+        source: |
+          session.create_table(
+              table="fxquote",
+              type="partitioned",
+              prtnCol="ts",
+              sortColsDisk=["sym"],
+              sortColsOrd=["sym"],
+              columns=[
+                  {"name": "trddate", "type": "date"},
+                  {"name": "ts", "type": "timestamp"},
+                  {"name": "sym", "type": "symbol", "attrMem": "grouped", "attrDisk": "parted", "attrOrd": "parted"},
+                  {"name": "bid", "type": "float"},
+                  {"name": "ask", "type": "float"},
+              ]
+          )
       - lang: Python
         label: Python (minimal schema)
-        source: "session.create_table(\n    table=\"quote\",\n    columns=[\n        {\"\
-          name\": \"time\", \"type\": \"timespan\"},\n        {\"name\": \"sym\",\
-          \ \"type\": \"symbol\"},\n        {\"name\": \"realTime\", \"type\": \"\
-          timestamp\"},\n        {\"name\": \"bid\", \"type\": \"float\"},\n     \
-          \   {\"name\": \"ask\", \"type\": \"float\"},\n        {\"name\": \"bidSize\"\
-          , \"type\": \"long\"},\n        {\"name\": \"askSize\", \"type\": \"long\"\
-          },\n    ],\n)"
+        source: |
+          session.create_table(
+              table="fxquote",
+              columns=[
+                  {"name": "trddate", "type": "date"},
+                  {"name": "ts", "type": "timestamp"},
+                  {"name": "sym", "type": "symbol"},
+                  {"name": "bid", "type": "float"},
+                  {"name": "ask", "type": "float"},
+              ]
+          )
       - lang: q
         label: q (full schema)
         source: |
-          columns:(
-            `name`type!("time";"timespan");
-            `name`type`attrMem`attrDisk`attrOrd!("sym";"symbol";"grouped";"parted";"parted");
-            `name`type!("realTime";"timestamp");
-            `name`type!("bid";"float");
-            `name`type!("ask";"float");
-            `name`type!("bidSize";"long");
-            `name`type!("askSize";"long")
-          );
-          session.createTable[`table`description`type`blockSize`prtnCol`sortColsDisk`sortColsOrd`columns!("quote";"Quote data";"partitioned";10000;"realTime";enlist "sym";enlist "sym";columns)]
-
+          fxquoteCols:(`name`type!("trddate";"date");`name`type!("ts";"timestamp");`name`type`attrMem`attrDisk`attrOrd!("sym";"symbol";"grouped";"parted";"parted");`name`type!("bid";"float");`name`type!("ask";"float"));
+          session.createTable[`table`type`prtnCol`sortColsDisk`sortColsOrd`columns!("fxquote";"partitioned";"ts";enlist "sym";enlist "sym";fxquoteCols)]
       - lang: q
         label: q (minimal schema)
         source: |
-          columns:(
-            `name`type!("time";"timespan");
-            `name`type!("sym";"symbol");
-            `name`type!("realTime";"timestamp");
-            `name`type!("bid";"float");
-            `name`type!("ask";"float");
-            `name`type!("bidSize";"long");
-            `name`type!("askSize";"long")
-          );
-          session.createTable[`table`columns!("quote";columns)]
-
+          fxquoteCols:(`name`type!("trddate";"date");`name`type!("ts";"timestamp");`name`type!("sym";"symbol");`name`type!("bid";"float");`name`type!("ask";"float"));
+          session.createTable[`table`columns!("fxquote";fxquoteCols)]
       - lang: cURL
         label: cURL (full schema)
         source: |
-          curl -X POST "http://localhost:8080/api/v0/tables/quote" \
-            -H "Content-Type: application/json" \
+          curl -s -X POST "http://localhost:8080/api/v0/tables/fxquote" \
             -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
             -d '{
-              "description": "Quote data",
               "type": "partitioned",
-              "blockSize": 10000,
-              "prtnCol": "realTime",
-              "sortColsOrd": ["sym"],
+              "prtnCol": "ts",
               "sortColsDisk": ["sym"],
+              "sortColsOrd": ["sym"],
               "columns": [
-                {"name": "time", "type": "timespan"},
+                {"name": "trddate", "type": "date"},
+                {"name": "ts", "type": "timestamp"},
                 {"name": "sym", "type": "symbol", "attrMem": "grouped", "attrDisk": "parted", "attrOrd": "parted"},
-                {"name": "realTime", "type": "timestamp"},
                 {"name": "bid", "type": "float"},
-                {"name": "ask", "type": "float"},
-                {"name": "bidSize", "type": "long"},
-                {"name": "askSize", "type": "long"}
+                {"name": "ask", "type": "float"}
               ]
-            }'
+            }' | jq
+
+
       - lang: cURL
         label: cURL (minimal schema)
         source: |
-          curl -X POST "http://localhost:8080/api/v0/tables/quote" \
-            -H "Content-Type: application/json" \
+          curl -s -X POST "http://localhost:8080/api/v0/tables/fxquote" \
             -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
             -d '{
               "columns": [
-                {"name": "time", "type": "timespan"},
+                {"name": "trddate", "type": "date"},
+                {"name": "ts", "type": "timestamp"},
                 {"name": "sym", "type": "symbol"},
-                {"name": "realTime", "type": "timestamp"},
                 {"name": "bid", "type": "float"},
-                {"name": "ask", "type": "float"},
-                {"name": "bidSize", "type": "long"},
-                {"name": "askSize", "type": "long"}
+                {"name": "ask", "type": "float"}
               ]
-            }'
+            }' | jq
+
+
     get:
       operationId: configTable
       summary: Describe table
@@ -1225,16 +1166,16 @@ paths:
       x-codeSamples:
       - lang: Python
         label: Python
-        source: session.describe_table(table="quote")
+        source: session.describe_table(table="fxquote")
       - lang: q
         label: q
         source: |
-          session.describeTable["quote"]
+          session.describeTable["fxquote"]
       - lang: cURL
         label: cURL
         source: |
-          curl -X GET "http://localhost:8080/api/v0/tables/quote" \
-            -H "Accept: application/json"
+          curl -s -X GET "http://localhost:8080/api/v0/tables/fxquote" \
+            -H "Accept: application/json" | jq
     delete:
       operationId: configTableDelete
       summary: Drop table
@@ -1274,16 +1215,16 @@ paths:
       x-codeSamples:
       - lang: Python
         label: Python
-        source: session.drop_table(table="quote")
+        source: session.drop_table(table="instruments")
       - lang: q
         label: q
         source: |
-          session.dropTable["quote"]
+          session.dropTable["instruments"]
       - lang: cURL
         label: cURL
         source: |
-          curl -X DELETE "http://localhost:8080/api/v0/tables/quote" \
-            -H "Accept: application/json"
+          curl -s -X DELETE "http://localhost:8080/api/v0/tables/instruments" \
+            -H "Accept: application/json" | jq
 components:
   schemas:
 

@@ -2,7 +2,9 @@
 
 The DB Service is a self-contained variation of the KDB-X [tick-based architecture](https://code.kx.com/kdb-x/how_to/manage_streaming_data/architecture.html), with many useful built-in features accessible via a well-documented API. It is a simple way to quickly deploy a fully-implemented KDB-X database to capture and query streaming and batch data.
 
-Full documentation available at [code.kx](https://code.kx.com/kdb-x/get_started/services/db-service/introduction.html)
+![KDB-X DB Service architecture](architecture.png)
+
+Full documentation available at [code.kx](https://code.kx.com/kdb-x/services/db-service/introduction.html)
 
 ## Prerequisites
 
@@ -18,7 +20,7 @@ Before starting the DB Service, you must have your local environment ready. Ensu
 
 DB Service is configured by default to enforce the [usage restrictions](https://code.kx.com/insights/licensing/usage-restrictions.html) of the KDB-X Community Edition license. If you are not using Community Edition you should edit `.env` and delete the indicated variables (`DS_SM_MEM_LIMIT`, `DS_DA_MEM_LIMIT` and `DS_OTHER_MEM_LIMIT`) to disable the restrictions.
 
-If you are using Community Edition you are permitted to edit these restrictions so long as you remain within the 16GB total limit. If you are running on a typical Linux system, the [systemd slice](#using-systemd-slices-for-usage-limits) approach outlined below is more flexible.
+If you are using Community Edition you are permitted to edit these restrictions so long as you remain within the 16GB total limit. If you are running on a typical Linux system, the [systemd slice](#using-systemd-slices-for-community-edition-usage-limits) approach outlined below is more flexible.
 
 ## Starting the DB Service
 
@@ -50,7 +52,7 @@ docker compose up -d
 
 ## Using the DB Service
 
-You can connect to the DB Service using one of the following interfaces. There is a basic import and query workflow available in the documentation's [quickstart](https://code.kx.com/kdb-x/get_started/services/db-service/quickstart.html#basic-workflow). Example notebooks are also bundled with the service.
+You can connect to the DB Service using one of the following interfaces. There is a basic import and query workflow available in the documentation's [quickstart](https://code.kx.com/kdb-x/services/db-service/quickstart.html). Example notebooks are also bundled with the service.
 
 ### q client
 
