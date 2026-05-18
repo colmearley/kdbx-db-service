@@ -13,6 +13,10 @@ services:
     stdin_open: true
     ports:
       - ${DS_PORT_BUS:-5002}:5002
+      - 16000:6000
+      - 6001:6001
+      - 4000:4000
+      - 4998:4998
     volumes:
       - ./data/rt:/s
     networks:
@@ -24,7 +28,7 @@ services:
       - RT_SINK=data
       - RT_TOPIC_PREFIX=rt-
     hostname: rt-data-0
-    image: ${DS_REGISTRY:-}kxi-rt:${DS_RT_TAG}
+    image: ${DS_RT_IMAGE:-${DS_REGISTRY:-}kxi-rt:${DS_RT_TAG}}
     command: -p 6000 -in /s/in -out /s/out -cp /s/state -size 1
 
   kx-db-sm:
@@ -33,6 +37,11 @@ services:
     mem_limit: ${DS_SM_MEM_LIMIT:-0}
     tty: true
     stdin_open: true
+    ports:
+      - 20001:20001
+      - 20002:20002
+      - 20003:20003
+      - 20004:20004
     volumes:
       - ./data/db:/db
       - ./data/imports:/imports
@@ -55,7 +64,7 @@ services:
       - KXI_SECURE_ENABLED=false
       - KXI_LATE_DATA=true
       - KXI_LOG_FORMAT=text
-    image: ${DS_REGISTRY}kxi-sm-single:${DS_TAG}
+    image: ${DS_SM_IMAGE:-${DS_REGISTRY}kxi-sm-single:${DS_TAG}}
 
   kx-db-da:
     container_name: kx-db-da
@@ -63,6 +72,11 @@ services:
     mem_limit: ${DS_DA_MEM_LIMIT:-0}
     tty: true
     stdin_open: true
+    ports:
+      - 5080:5080
+      - 5081:5081
+      - 5082:5082
+      - 5083:5083
     volumes:
       - ./data/db:/db
       - ./data/logs:/logs
@@ -85,7 +99,7 @@ services:
       - KXI_LOG_FORMAT=text
       - KXI_SG_RC_ADDR=kx-db-rc:5050
       - KXI_SM_ADDR=kx-db-sm:20001
-    image: ${DS_REGISTRY}kxi-da-single:${DS_TAG}
+    image: ${DS_DA_IMAGE:-${DS_REGISTRY}kxi-da-single:${DS_TAG}}
 
   kx-db-rc:
     container_name: kx-db-rc
@@ -93,6 +107,8 @@ services:
     mem_limit: ${DS_OTHER_MEM_LIMIT:-0}
     tty: true
     stdin_open: true
+    ports:
+      - 5050:5050
     networks:
       - kx-db
     environment:
@@ -106,7 +122,7 @@ services:
       - KXI_LOG_FORMAT=text
       - KXI_NAME=sg_rc
       - KXI_PORT=5050
-    image: ${DS_REGISTRY}kxi-sg-rc:${DS_TAG}
+    image: ${DS_RC_IMAGE:-${DS_REGISTRY}kxi-sg-rc:${DS_TAG}}
 
   kx-db-agg:
     container_name: kx-db-agg
@@ -114,6 +130,8 @@ services:
     mem_limit: ${DS_OTHER_MEM_LIMIT:-0}
     tty: true
     stdin_open: true
+    ports:
+      - 15060:5060
     networks:
       - kx-db
     environment:
@@ -128,7 +146,7 @@ services:
       - KXI_LATE_DATA=true
       - KXI_LOG_FORMAT=text
       - KXI_SG_RC_ADDR=kx-db-rc:5050
-    image: ${DS_REGISTRY}kxi-sg-agg:${DS_TAG}
+    image: ${DS_AGG_IMAGE:-${DS_REGISTRY}kxi-sg-agg:${DS_TAG}}
 
   kx-db-gw:
     container_name: kx-db-gw
@@ -152,4 +170,4 @@ services:
       - KXI_SCOPE_AFFINITY=soft
       - KXI_LOG_FORMAT=text
       - KXI_SG_RC_ADDR=kx-db-rc:5050
-    image: ${DS_REGISTRY}kxi-sg-gw:${DS_TAG}
+    image: ${DS_GW_IMAGE:-${DS_REGISTRY}kxi-sg-gw:${DS_TAG}}
