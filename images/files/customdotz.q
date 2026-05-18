@@ -1,0 +1,13 @@
+if[not `customdotz in key `;
+   .customdotz:enlist[`]!enlist[(::)];
+   .customdotz.get:{@[get;x;{.customdotz.defaults[y]}[;x]]};
+   .customdotz.tryExec:{[cbName;cb;x] @[.customdotz.defaults[cbName];x;{y z}[;cb;x]]};
+   .customdotz.log:([]time:`timestamp$();handler:`symbol$();handle:`int$();user:`symbol$();ip:();host:`symbol$();args:());
+   .customdotz.logger:{`.customdotz.log insert (.z.p;x;.z.w;.z.u;"." sv string `int$0x0 vs .z.a;.Q.host .z.a;y);};
+   .customdotz.defaults:`.z.ph`.z.pg`.z.ps!(.z.ph;value;value);
+   .customdotz.overrides:()!();
+   .customdotz.overrides[`.z.ph]:{.customdotz.logger[x;z]; $[any z[0] like/:("";"[?]*"); .customdotz.tryExec[x;y;z]; y@z]};
+   .customdotz.overrides[`.z.pg`.z.ps]:{.customdotz.logger[x;z]; .customdotz.tryExec[x;y;z]};
+   .customdotz.basefunc:{$[type[x] in 100 101h;x;first value x]}/;
+   .customdotz.applyOverrides:{{if[.customdotz.overrides[x]~.customdotz.basefunc f:.customdotz.get x;:(::)]; x set .customdotz.overrides[x][x;.customdotz.get x]}each key .customdotz.overrides};
+  ];
